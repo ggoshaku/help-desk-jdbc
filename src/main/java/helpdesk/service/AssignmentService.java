@@ -4,6 +4,7 @@ import helpdesk.exception.AccessDeniedException;
 import helpdesk.exception.TicketNotFoundException;
 import helpdesk.exception.UserNotFoundException;
 import helpdesk.model.AssignmentChange;
+import helpdesk.model.AuditAction;
 import helpdesk.model.SupportAgent;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketStatus;
@@ -24,6 +25,7 @@ public class AssignmentService {
     private final UserRepository userRepository;
     private final StatusHistoryRepository statusHistoryRepository;
     private final AssignmentHistoryRepository assignmentHistoryRepository;
+    private final AuditService auditService;
     private final NotificationService notificationService;
 
     public AssignmentService(TransactionRunner transactions,
@@ -31,12 +33,14 @@ public class AssignmentService {
                              UserRepository userRepository,
                              StatusHistoryRepository statusHistoryRepository,
                              AssignmentHistoryRepository assignmentHistoryRepository,
+                             AuditService auditService,
                              NotificationService notificationService) {
         this.transactions = transactions;
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.statusHistoryRepository = statusHistoryRepository;
         this.assignmentHistoryRepository = assignmentHistoryRepository;
+        this.auditService = auditService;
         this.notificationService = notificationService;
     }
 
@@ -65,6 +69,7 @@ public class AssignmentService {
             locked.assignTo(agentId);
             ticketRepository.update(locked);
             assignmentHistoryRepository.add(ticketId, oldAssigneeId, agentId, assignedByUserId);
+            auditService.ticketAction(assignedByUserId, AuditAction.ASSIGN_TICKET, ticketId, agent.getName());
             if (oldStatus != locked.getStatus()) {
                 statusHistoryRepository.add(ticketId, oldStatus, locked.getStatus(), assignedByUserId);
             }

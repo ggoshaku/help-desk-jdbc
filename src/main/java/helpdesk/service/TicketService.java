@@ -4,6 +4,7 @@ import helpdesk.exception.AccessDeniedException;
 import helpdesk.exception.CategoryNotFoundException;
 import helpdesk.exception.TicketNotFoundException;
 import helpdesk.exception.UserNotFoundException;
+import helpdesk.model.AuditAction;
 import helpdesk.model.Category;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
@@ -27,6 +28,7 @@ public class TicketService {
     private final CategoryRepository categoryRepository;
     private final StatusHistoryRepository historyRepository;
     private final SlaPolicyRepository slaPolicyRepository;
+    private final AuditService auditService;
     private final NotificationService notificationService;
 
     public TicketService(TransactionRunner transactions,
@@ -35,6 +37,7 @@ public class TicketService {
                          CategoryRepository categoryRepository,
                          StatusHistoryRepository historyRepository,
                          SlaPolicyRepository slaPolicyRepository,
+                         AuditService auditService,
                          NotificationService notificationService) {
         this.transactions = transactions;
         this.ticketRepository = ticketRepository;
@@ -42,6 +45,7 @@ public class TicketService {
         this.categoryRepository = categoryRepository;
         this.historyRepository = historyRepository;
         this.slaPolicyRepository = slaPolicyRepository;
+        this.auditService = auditService;
         this.notificationService = notificationService;
     }
 
@@ -64,7 +68,10 @@ public class TicketService {
         Ticket ticket = new Ticket(title, description, priority, customerId, categoryId);
         slaPolicyRepository.findByPriority(priority)
                 .ifPresent(policy -> ticket.setDeadline(LocalDateTime.now().plus(policy.resolveTime())));
-        ticketRepository.save(ticket);
+        transactions.runInTransaction(() -> {
+            ticketRepository.save(ticket);
+            auditService.ticketAction(customerId, AuditAction.CREATE_TICKET, ticket.getId(), ticket.getTitle());
+        });
         notificationService.send("Заявка №" + ticket.getId() + " зарегистрирована");
         return ticket;
     }
@@ -83,6 +90,7 @@ public class TicketService {
             locked.changeStatus(newStatus);
             ticketRepository.update(locked);
             historyRepository.add(ticketId, oldStatus, newStatus, userId);
+            auditService.ticketAction(userId, AuditAction.CHANGE_STATUS, ticketId, oldStatus + " -> " + newStatus);
             return locked;
         });
 

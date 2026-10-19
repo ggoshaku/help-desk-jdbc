@@ -10,6 +10,7 @@ import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
 import helpdesk.repository.memory.InMemoryAssignmentHistoryRepository;
+import helpdesk.repository.memory.InMemoryAuditLogRepository;
 import helpdesk.repository.memory.InMemoryStatusHistoryRepository;
 import helpdesk.repository.memory.InMemoryTicketRepository;
 import helpdesk.repository.memory.InMemoryTransactionRunner;
@@ -26,7 +27,8 @@ class AssignmentServiceTest {
     private final InMemoryStatusHistoryRepository statusHistory = new InMemoryStatusHistoryRepository();
     private final InMemoryAssignmentHistoryRepository assignmentHistory = new InMemoryAssignmentHistoryRepository();
     private final AssignmentService assignmentService = new AssignmentService(
-            new InMemoryTransactionRunner(), tickets, users, statusHistory, assignmentHistory, message -> {
+            new InMemoryTransactionRunner(), tickets, users, statusHistory, assignmentHistory,
+            new AuditService(new InMemoryAuditLogRepository()), message -> {
     });
 
     private User customer;

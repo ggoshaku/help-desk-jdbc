@@ -17,6 +17,7 @@ import helpdesk.repository.TransactionRunner;
 import helpdesk.repository.UserRepository;
 import helpdesk.repository.jdbc.ConnectionProvider;
 import helpdesk.repository.jdbc.JdbcAssignmentHistoryRepository;
+import helpdesk.repository.jdbc.JdbcAuditLogRepository;
 import helpdesk.repository.jdbc.JdbcCategoryRepository;
 import helpdesk.repository.jdbc.JdbcCommentRepository;
 import helpdesk.repository.jdbc.JdbcReportRepository;
@@ -26,6 +27,7 @@ import helpdesk.repository.jdbc.JdbcTicketRepository;
 import helpdesk.repository.jdbc.JdbcTransactionManager;
 import helpdesk.repository.jdbc.JdbcUserRepository;
 import helpdesk.service.AssignmentService;
+import helpdesk.service.AuditService;
 import helpdesk.service.CategoryService;
 import helpdesk.service.CommentService;
 import helpdesk.service.ConsoleNotificationService;
@@ -50,6 +52,7 @@ public class Main {
     private final CommentService commentService;
     private final CategoryService categoryService;
     private final AssignmentService assignmentService;
+    private final AuditService auditService;
 
     private Main(ConnectionProvider dataSource) {
         JdbcTransactionManager connections = new JdbcTransactionManager(dataSource);
@@ -61,12 +64,14 @@ public class Main {
         slaPolicyRepository = new JdbcSlaPolicyRepository(connections);
         ticketRepository = new JdbcTicketRepository(connections);
         ConsoleNotificationService notifications = new ConsoleNotificationService();
+        auditService = new AuditService(new JdbcAuditLogRepository(connections));
         ticketService = new TicketService(connections, ticketRepository, userRepository, categoryRepository,
-                historyRepository, slaPolicyRepository, notifications);
+                historyRepository, slaPolicyRepository, auditService, notifications);
         assignmentService = new AssignmentService(connections, ticketRepository, userRepository,
-                historyRepository, new JdbcAssignmentHistoryRepository(connections), notifications);
+                historyRepository, new JdbcAssignmentHistoryRepository(connections), auditService, notifications);
         categoryService = new CategoryService(categoryRepository);
-        commentService = new CommentService(new JdbcCommentRepository(connections), ticketRepository, userRepository);
+        commentService = new CommentService(connections, new JdbcCommentRepository(connections),
+                ticketRepository, userRepository, auditService);
     }
 
     public static void main(String[] args) {
@@ -225,6 +230,9 @@ public class Main {
                 .orElse("нет данных"));
         reportRepository.averageResolutionTimeByCategory()
                 .forEach((category, time) -> System.out.println("  " + category + ": " + DurationFormat.format(time)));
+
+        section("Задание 19. Журнал аудита заявки №" + vpn.getId());
+        auditService.ticketHistory(vpn.getId()).forEach(e -> System.out.println("  " + e));
 
         section("Задание 18. Optimistic locking");
         Ticket scanner = ticketService.createTicket(

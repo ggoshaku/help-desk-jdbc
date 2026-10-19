@@ -9,6 +9,7 @@ import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
+import helpdesk.repository.memory.InMemoryAuditLogRepository;
 import helpdesk.repository.memory.InMemoryCategoryRepository;
 import helpdesk.repository.memory.InMemorySlaPolicyRepository;
 import helpdesk.repository.memory.InMemoryStatusHistoryRepository;
@@ -31,9 +32,10 @@ class TicketServiceTest {
     private final InMemoryUserRepository users = new InMemoryUserRepository();
     private final InMemoryCategoryRepository categories = new InMemoryCategoryRepository();
     private final InMemoryStatusHistoryRepository history = new InMemoryStatusHistoryRepository();
+    private final InMemoryAuditLogRepository audit = new InMemoryAuditLogRepository();
     private final TicketService ticketService = new TicketService(
             new InMemoryTransactionRunner(), new InMemoryTicketRepository(), users, categories, history,
-            new InMemorySlaPolicyRepository(), messages::add);
+            new InMemorySlaPolicyRepository(), new AuditService(audit), messages::add);
 
     private User customer;
     private User agent;
@@ -67,6 +69,7 @@ class TicketServiceTest {
 
         assertEquals(TicketStatus.CLOSED, ticketService.getTicket(ticket.getId()).getStatus());
         assertEquals(3, history.findByTicketId(ticket.getId()).size());
+        assertEquals(4, audit.findByEntity(AuditService.TICKET, ticket.getId()).size());
     }
 
     @Test
