@@ -1,6 +1,7 @@
 package helpdesk;
 
 import helpdesk.config.DatabaseConfig;
+import helpdesk.exception.OptimisticLockException;
 import helpdesk.model.Category;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketDetails;
@@ -224,6 +225,22 @@ public class Main {
                 .orElse("нет данных"));
         reportRepository.averageResolutionTimeByCategory()
                 .forEach((category, time) -> System.out.println("  " + category + ": " + DurationFormat.format(time)));
+
+        section("Задание 18. Optimistic locking");
+        Ticket scanner = ticketService.createTicket(
+                "Не работает сканер штрихкодов", "Касса 2", TicketPriority.MEDIUM, customer.getId(), 3L);
+        Ticket first = ticketRepository.findById(scanner.getId()).orElseThrow();
+        Ticket second = ticketRepository.findById(scanner.getId()).orElseThrow();
+        System.out.println("  Обе копии прочитаны с version = " + first.getVersion());
+        first.changeStatus(TicketStatus.IN_PROGRESS);
+        ticketRepository.update(first);
+        System.out.println("  Первый пользователь сохранил изменения, version = " + first.getVersion());
+        second.changeStatus(TicketStatus.CANCELLED);
+        try {
+            ticketRepository.update(second);
+        } catch (OptimisticLockException e) {
+            System.out.println("  Второй пользователь: " + e.getMessage());
+        }
 
         section("Rollback: сбой между UPDATE status и INSERT history");
         Ticket ticket = ticketService.createTicket(

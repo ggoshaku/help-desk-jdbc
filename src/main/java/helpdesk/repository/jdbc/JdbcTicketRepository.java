@@ -1,6 +1,7 @@
 package helpdesk.repository.jdbc;
 
 import helpdesk.exception.DataAccessException;
+import helpdesk.exception.OptimisticLockException;
 import helpdesk.exception.TicketNotFoundException;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
@@ -183,9 +184,10 @@ public class JdbcTicketRepository implements TicketRepository {
                     category_id = ?,
                     closed_at = ?,
                     due_at = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                RETURNING updated_at
+                    updated_at = CURRENT_TIMESTAMP,
+                    version = version + 1
+                WHERE id = ? AND version = ?
+                RETURNING updated_at, version
                 """;
 
         try (Connection connection = connections.getConnection();
@@ -200,12 +202,15 @@ public class JdbcTicketRepository implements TicketRepository {
             setNullableDateTime(ps, 7, ticket.getClosedAt());
             setNullableDateTime(ps, 8, ticket.getDueAt());
             ps.setLong(9, ticket.getId());
+            ps.setLong(10, ticket.getVersion());
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
-                    throw new TicketNotFoundException(ticket.getId());
+                    throw exists(connection, ticket.getId())
+                            ? new OptimisticLockException(ticket.getId(), ticket.getVersion())
+                            : new TicketNotFoundException(ticket.getId());
                 }
-                ticket.markUpdated(toLocalDateTime(rs.getTimestamp("updated_at")));
+                ticket.markUpdated(toLocalDateTime(rs.getTimestamp("updated_at")), rs.getLong("version"));
             }
         } catch (SQLException e) {
             throw new DataAccessException("Не удалось обновить заявку " + ticket.getId(), e);
@@ -241,6 +246,15 @@ public class JdbcTicketRepository implements TicketRepository {
         }
     }
 
+    private boolean exists(Connection connection, long id) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement("SELECT 1 FROM tickets WHERE id = ?")) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
     private static String escapeLike(String text) {
         return text.replace("\\", "\\\\")
                 .replace("%", "\\%")
@@ -260,7 +274,8 @@ public class JdbcTicketRepository implements TicketRepository {
                 toLocalDateTime(rs.getTimestamp("created_at")),
                 toLocalDateTime(rs.getTimestamp("updated_at")),
                 toLocalDateTime(rs.getTimestamp("closed_at")),
-                toLocalDateTime(rs.getTimestamp("due_at"))
+                toLocalDateTime(rs.getTimestamp("due_at")),
+                rs.getLong("version")
         );
     }
 }

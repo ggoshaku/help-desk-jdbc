@@ -85,7 +85,7 @@ public class InMemoryTicketRepository implements TicketRepository {
         if (!tickets.containsKey(ticket.getId())) {
             throw new TicketNotFoundException(ticket.getId());
         }
-        ticket.markUpdated(LocalDateTime.now());
+        ticket.markUpdated(LocalDateTime.now(), ticket.getVersion() + 1);
         tickets.put(ticket.getId(), ticket);
     }
 

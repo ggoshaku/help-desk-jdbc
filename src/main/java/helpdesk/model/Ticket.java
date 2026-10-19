@@ -18,6 +18,7 @@ public class Ticket {
     private LocalDateTime updatedAt;
     private LocalDateTime closedAt;
     private LocalDateTime dueAt;
+    private long version;
 
     public Ticket(String title, String description, TicketPriority priority, long customerId, Long categoryId) {
         if (title == null || title.strip().length() < 3) {
@@ -34,7 +35,7 @@ public class Ticket {
     public Ticket(long id, String title, String description, TicketStatus status, TicketPriority priority,
                   long customerId, Long assigneeId, Long categoryId,
                   LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime closedAt,
-                  LocalDateTime dueAt) {
+                  LocalDateTime dueAt, long version) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -47,6 +48,7 @@ public class Ticket {
         this.updatedAt = updatedAt;
         this.closedAt = closedAt;
         this.dueAt = dueAt;
+        this.version = version;
     }
 
     public void markSaved(long id, LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -89,8 +91,9 @@ public class Ticket {
         return dueAt != null && status.isActive() && moment.isAfter(dueAt);
     }
 
-    public void markUpdated(LocalDateTime updatedAt) {
+    public void markUpdated(LocalDateTime updatedAt, long version) {
         this.updatedAt = updatedAt;
+        this.version = version;
     }
 
     public Long getId() {
@@ -139,6 +142,10 @@ public class Ticket {
 
     public LocalDateTime getDueAt() {
         return dueAt;
+    }
+
+    public long getVersion() {
+        return version;
     }
 
     @Override
