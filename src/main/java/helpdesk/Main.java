@@ -9,17 +9,20 @@ import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
 import helpdesk.repository.CategoryRepository;
 import helpdesk.repository.CommentRepository;
+import helpdesk.repository.ReportRepository;
 import helpdesk.repository.StatusHistoryRepository;
 import helpdesk.repository.TicketRepository;
 import helpdesk.repository.UserRepository;
 import helpdesk.repository.jdbc.JdbcCategoryRepository;
 import helpdesk.repository.jdbc.JdbcCommentRepository;
+import helpdesk.repository.jdbc.JdbcReportRepository;
 import helpdesk.repository.jdbc.JdbcStatusHistoryRepository;
 import helpdesk.repository.jdbc.JdbcTicketRepository;
 import helpdesk.repository.jdbc.JdbcUserRepository;
 import helpdesk.service.CommentService;
 import helpdesk.service.ConsoleNotificationService;
 import helpdesk.service.TicketService;
+import helpdesk.ui.TicketCardPrinter;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -41,6 +44,7 @@ public class Main {
         TicketRepository ticketRepository = new JdbcTicketRepository(DatabaseConfig::getConnection);
         StatusHistoryRepository historyRepository = new JdbcStatusHistoryRepository(DatabaseConfig::getConnection);
         CommentRepository commentRepository = new JdbcCommentRepository(DatabaseConfig::getConnection);
+        ReportRepository reportRepository = new JdbcReportRepository(DatabaseConfig::getConnection);
         TicketService ticketService =
                 new TicketService(ticketRepository, userRepository, new ConsoleNotificationService());
         CommentService commentService = new CommentService(commentRepository, ticketRepository, userRepository);
@@ -91,6 +95,8 @@ public class Main {
             System.out.println("Ошибка: " + e.getMessage());
         }
 
+        System.out.println(TicketCardPrinter.format(reportRepository.findDetails(ticket.getId()).orElseThrow()));
+
         Ticket mistake = ticketService.createTicket(
                 "Ошибочная заявка", "Создана по ошибке", TicketPriority.LOW, customer.getId(), null
         );
@@ -100,6 +106,15 @@ public class Main {
         } catch (InvalidTicketStateException e) {
             System.out.println("Ошибка: " + e.getMessage());
         }
+
+        System.out.println();
+        System.out.println("Заявки с именами клиента и исполнителя (JOIN):");
+        reportRepository.findAllDetails().forEach(d -> System.out.printf(
+                "#%d %s | %s | клиент: %s | исполнитель: %s | категория: %s%n",
+                d.id(), d.title(), d.status(), d.customerName(), d.assigneeName(), d.categoryName()));
+        System.out.println("По статусам: " + reportRepository.countByStatus());
+        System.out.println("По категориям: " + reportRepository.countByCategory());
+        System.out.println("Нагрузка сотрудников: " + reportRepository.agentWorkload());
     }
 
     private static void printTicket(Ticket ticket) {
