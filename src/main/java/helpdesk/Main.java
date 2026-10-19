@@ -1,5 +1,6 @@
 package helpdesk;
 
+import helpdesk.config.DatabaseConfig;
 import helpdesk.exception.InvalidTicketStateException;
 import helpdesk.exception.TicketNotFoundException;
 import helpdesk.model.Administrator;
@@ -19,12 +20,22 @@ import helpdesk.service.NotificationService;
 import helpdesk.service.TelegramNotificationService;
 import helpdesk.service.TicketService;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
         System.out.println("=== HELP DESK ===");
+
+        try (Connection connection = DatabaseConfig.getConnection()) {
+            System.out.println("Подключение к PostgreSQL успешно");
+            System.out.println("AutoCommit = " + connection.getAutoCommit());
+        } catch (SQLException e) {
+            System.out.println("Не удалось подключиться к PostgreSQL: " + e.getMessage());
+            return;
+        }
 
         Customer customer = new Customer(1, "Анна Петрова", "anna@mail.ru");
         SupportAgent agent = new SupportAgent(2, "Сергей Иванов", "sergey@helpdesk.ru");
