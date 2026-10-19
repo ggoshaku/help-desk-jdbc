@@ -20,5 +20,7 @@ public interface TicketRepository {
 
     Ticket changeStatus(long ticketId, TicketStatus newStatus, long changedByUserId);
 
+    Ticket assign(long ticketId, long agentId, long assignedByUserId);
+
     boolean deleteById(long id);
 }

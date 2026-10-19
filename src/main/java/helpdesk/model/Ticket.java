@@ -67,6 +67,17 @@ public class Ticket {
         }
     }
 
+    public void assignTo(long agentId) {
+        if (status == TicketStatus.NEW) {
+            changeStatus(TicketStatus.IN_PROGRESS);
+        } else if (status != TicketStatus.IN_PROGRESS) {
+            throw new InvalidTicketStateException(
+                    "Заявка №" + id + " в статусе " + status + ", назначить исполнителя нельзя"
+            );
+        }
+        assigneeId = agentId;
+    }
+
     public void markUpdated(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }

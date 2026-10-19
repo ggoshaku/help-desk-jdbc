@@ -3,6 +3,7 @@ package helpdesk.service;
 import helpdesk.exception.AccessDeniedException;
 import helpdesk.exception.TicketNotFoundException;
 import helpdesk.exception.UserNotFoundException;
+import helpdesk.model.SupportAgent;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
@@ -45,6 +46,25 @@ public class TicketService {
         Ticket updated = ticketRepository.changeStatus(ticketId, newStatus, userId);
         notificationService.send("Заявка №" + ticketId + ": " + ticket.getStatus() + " -> " + newStatus);
         return updated;
+    }
+
+    public Ticket assignTicket(long ticketId, long agentId, long assignedByUserId) {
+        User agent = getUser(agentId);
+        if (!(agent instanceof SupportAgent) || !agent.isActive()) {
+            throw new AccessDeniedException(
+                    "Заявку можно назначить только активному сотруднику поддержки, а " + agent.getName()
+                            + " - " + agent.getRole()
+            );
+        }
+        User assignedBy = getUser(assignedByUserId);
+        Ticket ticket = getTicket(ticketId);
+        if (!assignedBy.canChangeStatus(ticket, TicketStatus.IN_PROGRESS)) {
+            throw new AccessDeniedException(assignedBy.getName() + " не может назначать заявки");
+        }
+
+        Ticket assigned = ticketRepository.assign(ticketId, agentId, assignedByUserId);
+        notificationService.send("Заявка №" + ticketId + " назначена на " + agent.getName());
+        return assigned;
     }
 
     public Ticket cancelTicket(long ticketId, long userId) {

@@ -42,6 +42,7 @@ public class Main {
 
         User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
         User agent = userRepository.findByEmail("ivan.support@example.org").orElseThrow();
+        User admin = userRepository.findByEmail("admin@example.org").orElseThrow();
         System.out.println("Категории:");
         categoryRepository.findAll().forEach(System.out::println);
 
@@ -54,8 +55,14 @@ public class Main {
         );
         printTicket(ticket);
 
-        ticket = ticketService.changeStatus(ticket.getId(), TicketStatus.IN_PROGRESS, agent.getId());
+        try {
+            ticketService.assignTicket(ticket.getId(), customer.getId(), admin.getId());
+        } catch (AccessDeniedException e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        }
+        ticket = ticketService.assignTicket(ticket.getId(), agent.getId(), admin.getId());
         printTicket(ticket);
+        System.out.println("Исполнитель: " + ticket.getAssigneeId());
         ticket = ticketService.changeStatus(ticket.getId(), TicketStatus.RESOLVED, agent.getId());
         printTicket(ticket);
 

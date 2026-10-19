@@ -59,6 +59,14 @@ public class InMemoryTicketRepository implements TicketRepository {
     }
 
     @Override
+    public Ticket assign(long ticketId, long agentId, long assignedByUserId) {
+        Ticket ticket = findById(ticketId).orElseThrow(() -> new TicketNotFoundException(ticketId));
+        ticket.assignTo(agentId);
+        update(ticket);
+        return ticket;
+    }
+
+    @Override
     public boolean deleteById(long id) {
         return tickets.remove(id) != null;
     }
