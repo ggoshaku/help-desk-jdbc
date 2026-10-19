@@ -185,6 +185,13 @@ public class Main {
         System.out.println("  Просрочены на " + moment.withNano(0) + ":");
         ticketService.findOverdue(moment).forEach(t -> System.out.println("  " + t + " | срок " + t.getDueAt()));
 
+        section("Задание 11. Пагинация (по 5 заявок)");
+        int pages = ticketService.countPages(5);
+        for (int page = 1; page <= 2; page++) {
+            System.out.println("  Страница " + page + " из " + pages + ":");
+            ticketService.findPage(page, 5).forEach(t -> System.out.println("    " + t));
+        }
+
         section("Rollback: сбой между UPDATE status и INSERT history");
         Ticket ticket = ticketService.createTicket(
                 "Проверка отката", "Демонстрация rollback", TicketPriority.LOW, customer.getId(), 2L);

@@ -132,6 +132,32 @@ public class JdbcTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> findPage(int page, int size) {
+        String sql = """
+                SELECT * FROM tickets
+                ORDER BY id
+                LIMIT ? OFFSET ?
+                """;
+        return query(sql, ps -> {
+            ps.setInt(1, size);
+            ps.setLong(2, (long) (page - 1) * size);
+        });
+    }
+
+    @Override
+    public long count() {
+        try (Connection connection = connections.getConnection();
+             PreparedStatement ps = connection.prepareStatement("SELECT COUNT(*) FROM tickets");
+             ResultSet rs = ps.executeQuery()) {
+
+            rs.next();
+            return rs.getLong(1);
+        } catch (SQLException e) {
+            throw new DataAccessException("Ошибка подсчёта заявок", e);
+        }
+    }
+
+    @Override
     public void update(Ticket ticket) {
         String sql = """
                 UPDATE tickets

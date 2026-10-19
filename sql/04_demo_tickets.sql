@@ -1,0 +1,75 @@
+INSERT INTO users(name, email, role, department_id) VALUES
+('Мария Кузнецова', 'maria@example.org', 'CUSTOMER', NULL),
+('Дмитрий Орлов', 'dmitry@example.org', 'CUSTOMER', NULL),
+('Елена Смирнова', 'elena.support@example.org', 'SUPPORT_AGENT', 3);
+
+INSERT INTO tickets(
+    title, description, status, priority,
+    customer_id, assignee_id, category_id,
+    created_at, updated_at, closed_at, due_at
+)
+SELECT d.title,
+       d.description,
+       d.status::ticket_status,
+       d.priority::ticket_priority,
+       customer.id,
+       assignee.id,
+       c.id,
+       LOCALTIMESTAMP - d.age,
+       LOCALTIMESTAMP - d.age + d.work,
+       CASE WHEN d.status = 'CLOSED' THEN LOCALTIMESTAMP - d.age + d.work END,
+       LOCALTIMESTAMP - d.age + s.resolve_minutes * INTERVAL '1 minute'
+FROM (VALUES
+    ('Не открывается почта', 'Outlook зависает при запуске', 'CLOSED', 'MEDIUM',
+     'maria@example.org', 'ivan.support@example.org', 'Программное обеспечение', INTERVAL '7 days', INTERVAL '5 hours'),
+    ('Нет доступа к общей папке', 'Папка \\fs01\docs пишет "отказано в доступе"', 'CLOSED', 'HIGH',
+     'dmitry@example.org', 'elena.support@example.org', 'Доступы', INTERVAL '7 days', INTERVAL '90 minutes'),
+    ('Медленный интернет', 'Скорость ниже 1 Мбит/с в переговорной', 'CLOSED', 'MEDIUM',
+     'anna@example.org', 'sergey.net@example.org', 'Сеть', INTERVAL '6 days', INTERVAL '7 hours'),
+    ('Сломалась мышь', 'Не работает правая кнопка', 'CLOSED', 'LOW',
+     'maria@example.org', 'ivan.support@example.org', 'Оборудование', INTERVAL '6 days', INTERVAL '20 hours'),
+    ('Не устанавливается 7-Zip', 'Установщик требует права администратора', 'CLOSED', 'LOW',
+     'dmitry@example.org', 'ivan.support@example.org', 'Программное обеспечение', INTERVAL '5 days', INTERVAL '3 hours'),
+    ('Пропал VPN', 'Клиент VPN не подключается из дома', 'CLOSED', 'CRITICAL',
+     'anna@example.org', 'sergey.net@example.org', 'Сеть', INTERVAL '5 days', INTERVAL '25 minutes'),
+    ('Заблокирована учётная запись', 'Трижды ввела неверный пароль', 'CLOSED', 'HIGH',
+     'maria@example.org', 'elena.support@example.org', 'Доступы', INTERVAL '4 days', INTERVAL '40 minutes'),
+    ('Мерцает монитор', 'Монитор Dell периодически гаснет', 'CLOSED', 'MEDIUM',
+     'dmitry@example.org', 'ivan.support@example.org', 'Оборудование', INTERVAL '4 days', INTERVAL '10 hours'),
+    ('Ошибка при печати PDF', 'Принтер печатает пустые страницы', 'RESOLVED', 'MEDIUM',
+     'anna@example.org', 'ivan.support@example.org', 'Оборудование', INTERVAL '3 days', INTERVAL '6 hours'),
+    ('Не синхронизируется календарь', 'События с телефона не видны в Outlook', 'RESOLVED', 'LOW',
+     'maria@example.org', 'elena.support@example.org', 'Программное обеспечение', INTERVAL '3 days', INTERVAL '1 day'),
+    ('Нет Wi-Fi на третьем этаже', 'Точка доступа не раздаёт сеть', 'IN_PROGRESS', 'HIGH',
+     'dmitry@example.org', 'sergey.net@example.org', 'Сеть', INTERVAL '2 days', INTERVAL '1 hour'),
+    ('Нужен доступ к CRM', 'Новому сотруднику нужна учётная запись в CRM', 'IN_PROGRESS', 'MEDIUM',
+     'anna@example.org', 'elena.support@example.org', 'Доступы', INTERVAL '2 days', INTERVAL '2 hours'),
+    ('Шумит системный блок', 'Сильно гудит вентилятор', 'IN_PROGRESS', 'LOW',
+     'maria@example.org', 'ivan.support@example.org', 'Оборудование', INTERVAL '30 hours', INTERVAL '3 hours'),
+    ('Падает 1С при закрытии месяца', 'Ошибка "недостаточно памяти"', 'IN_PROGRESS', 'CRITICAL',
+     'dmitry@example.org', 'ivan.support@example.org', 'Программное обеспечение', INTERVAL '20 hours', INTERVAL '1 hour'),
+    ('Не работает сканер', 'Сканер не определяется по USB', 'NEW', 'MEDIUM',
+     'anna@example.org', NULL, 'Оборудование', INTERVAL '18 hours', INTERVAL '0 minutes'),
+    ('Сбросить пароль от почты', 'Забыла пароль после отпуска', 'NEW', 'HIGH',
+     'maria@example.org', NULL, 'Доступы', INTERVAL '10 hours', INTERVAL '0 minutes'),
+    ('Не открывается сайт кадровой системы', 'Браузер пишет ERR_CONNECTION_TIMED_OUT', 'NEW', 'HIGH',
+     'dmitry@example.org', NULL, 'Сеть', INTERVAL '6 hours', INTERVAL '0 minutes'),
+    ('Установить Zoom', 'Нужен Zoom для созвонов с клиентами', 'NEW', 'LOW',
+     'anna@example.org', NULL, 'Программное обеспечение', INTERVAL '5 hours', INTERVAL '0 minutes'),
+    ('Не печатает цветной принтер', 'Ошибка картриджа C', 'NEW', 'MEDIUM',
+     'maria@example.org', NULL, 'Оборудование', INTERVAL '4 hours', INTERVAL '0 minutes'),
+    ('Пропал звук в наушниках', 'Гарнитура подключена, звука нет', 'NEW', 'LOW',
+     'dmitry@example.org', NULL, 'Оборудование', INTERVAL '3 hours', INTERVAL '0 minutes'),
+    ('Не работает удалённый рабочий стол', 'RDP отклоняет подключение к серверу', 'NEW', 'CRITICAL',
+     'anna@example.org', NULL, 'Сеть', INTERVAL '2 hours', INTERVAL '0 minutes'),
+    ('Ошибка обновления Windows', 'Обновление откатывается на 30%', 'NEW', 'MEDIUM',
+     'maria@example.org', NULL, 'Программное обеспечение', INTERVAL '90 minutes', INTERVAL '0 minutes'),
+    ('Нужны права на папку отчётов', 'Доступ только на чтение', 'CANCELLED', 'LOW',
+     'dmitry@example.org', NULL, 'Доступы', INTERVAL '2 days', INTERVAL '30 minutes'),
+    ('Не работает клавиатура', 'Залили чаем', 'CANCELLED', 'MEDIUM',
+     'anna@example.org', NULL, 'Оборудование', INTERVAL '1 day', INTERVAL '2 hours')
+) AS d(title, description, status, priority, customer_email, assignee_email, category_name, age, work)
+JOIN users customer ON customer.email = d.customer_email
+LEFT JOIN users assignee ON assignee.email = d.assignee_email
+JOIN categories c ON c.name = d.category_name
+JOIN sla_policies s ON s.priority = d.priority::ticket_priority;

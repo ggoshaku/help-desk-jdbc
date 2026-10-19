@@ -144,6 +144,17 @@ public class TicketService {
         return ticketRepository.findOverdue(moment);
     }
 
+    public List<Ticket> findPage(int page, int size) {
+        if (page < 1 || size < 1 || size > 100) {
+            throw new IllegalArgumentException("Некорректные параметры страницы: page=" + page + ", size=" + size);
+        }
+        return ticketRepository.findPage(page, size);
+    }
+
+    public int countPages(int size) {
+        return (int) ((ticketRepository.count() + size - 1) / size);
+    }
+
     private Ticket lockTicket(long ticketId) {
         return ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException(ticketId));

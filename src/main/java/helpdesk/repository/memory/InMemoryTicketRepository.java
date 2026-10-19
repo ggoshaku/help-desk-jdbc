@@ -61,6 +61,19 @@ public class InMemoryTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> findPage(int page, int size) {
+        return tickets.values().stream()
+                .skip((long) (page - 1) * size)
+                .limit(size)
+                .toList();
+    }
+
+    @Override
+    public long count() {
+        return tickets.size();
+    }
+
+    @Override
     public void update(Ticket ticket) {
         if (!tickets.containsKey(ticket.getId())) {
             throw new TicketNotFoundException(ticket.getId());

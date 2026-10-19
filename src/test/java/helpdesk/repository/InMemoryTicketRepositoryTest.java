@@ -49,4 +49,17 @@ class InMemoryTicketRepositoryTest {
         assertFalse(repository.deleteById(1));
         assertTrue(repository.findAll().isEmpty());
     }
+
+    @Test
+    void findPageSkipsPreviousPages() {
+        for (int i = 2; i <= 12; i++) {
+            repository.save(new Ticket("Заявка " + i, "", TicketPriority.LOW, 1, null));
+        }
+
+        assertEquals(12, repository.count());
+        assertEquals(5, repository.findPage(1, 5).size());
+        assertEquals(6L, repository.findPage(2, 5).get(0).getId());
+        assertEquals(2, repository.findPage(3, 5).size());
+        assertTrue(repository.findPage(4, 5).isEmpty());
+    }
 }

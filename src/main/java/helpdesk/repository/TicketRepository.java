@@ -24,6 +24,10 @@ public interface TicketRepository {
 
     List<Ticket> findOverdue(LocalDateTime moment);
 
+    List<Ticket> findPage(int page, int size);
+
+    long count();
+
     void update(Ticket ticket);
 
     boolean deleteById(long id);
