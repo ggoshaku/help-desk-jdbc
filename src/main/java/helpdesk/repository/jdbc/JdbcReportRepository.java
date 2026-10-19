@@ -24,24 +24,7 @@ import static helpdesk.repository.jdbc.JdbcUtils.toLocalDateTime;
 
 public class JdbcReportRepository implements ReportRepository {
 
-    private static final String SELECT_DETAILS = """
-            SELECT
-                t.id,
-                t.title,
-                t.status,
-                t.priority,
-                c.name AS category_name,
-                customer.name AS customer_name,
-                assignee.name AS assignee_name,
-                t.created_at,
-                t.updated_at,
-                t.closed_at,
-                t.due_at
-            FROM tickets t
-            JOIN users customer ON customer.id = t.customer_id
-            LEFT JOIN users assignee ON assignee.id = t.assignee_id
-            LEFT JOIN categories c ON c.id = t.category_id
-            """;
+    private static final String SELECT_DETAILS = "SELECT * FROM ticket_details";
 
     private static final RowMapper<TicketDetails> DETAILS_MAPPER = rs -> new TicketDetails(
             rs.getLong("id"),
@@ -65,14 +48,14 @@ public class JdbcReportRepository implements ReportRepository {
 
     @Override
     public Optional<TicketDetails> findDetails(long ticketId) {
-        return query(SELECT_DETAILS + " WHERE t.id = ?", ps -> ps.setLong(1, ticketId), DETAILS_MAPPER)
+        return query(SELECT_DETAILS + " WHERE id = ?", ps -> ps.setLong(1, ticketId), DETAILS_MAPPER)
                 .stream()
                 .findFirst();
     }
 
     @Override
     public List<TicketDetails> findAllDetails() {
-        return query(SELECT_DETAILS + " ORDER BY t.created_at DESC", ps -> {
+        return query(SELECT_DETAILS + " ORDER BY created_at DESC", ps -> {
         }, DETAILS_MAPPER);
     }
 
