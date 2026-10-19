@@ -1,6 +1,8 @@
 package helpdesk;
 
 import helpdesk.config.DatabaseConfig;
+import helpdesk.exception.AccessDeniedException;
+import helpdesk.exception.InvalidTicketStateException;
 import helpdesk.exception.OptimisticLockException;
 import helpdesk.exception.RatingException;
 import helpdesk.model.Category;
@@ -185,12 +187,50 @@ public class Main {
     }
 
     private void demo() {
+        User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
+        User agent = userRepository.findByEmail("ivan.support@example.org").orElseThrow();
+        User admin = userRepository.findByEmail("admin@example.org").orElseThrow();
+
+        section("Задание 1. Поиск по email");
+        System.out.println("  anna@example.org: " + userRepository.findByEmail("anna@example.org")
+                .map(User::getName).orElse("не найден"));
+        System.out.println("  nobody@example.org: " + userRepository.findByEmail("nobody@example.org")
+                .map(User::getName).orElse("не найден"));
+
+        section("Задания 3-4. updated_at и отмена заявки");
+        Ticket first = ticketService.createTicket(
+                "Нужна вторая мышь", "Для работы с двумя ПК", TicketPriority.LOW, customer.getId(), 3L);
+        System.out.println("  создана:   updated_at = " + first.getUpdatedAt());
+        Ticket cancelled = ticketService.cancelTicket(first.getId(), customer.getId());
+        System.out.println("  NEW -> CANCELLED:         updated_at = " + cancelled.getUpdatedAt());
+        Ticket second = ticketService.createTicket(
+                "Не работает веб-камера", "Камера не определяется", TicketPriority.LOW, customer.getId(), 3L);
+        assignmentService.assignTicket(second.getId(), agent.getId(), admin.getId());
+        System.out.println("  IN_PROGRESS -> CANCELLED: "
+                + ticketService.cancelTicket(second.getId(), customer.getId()).getStatus());
+        Ticket closed = ticketService.findByStatus(TicketStatus.CLOSED).get(0);
+        try {
+            ticketService.cancelTicket(closed.getId(), admin.getId());
+        } catch (InvalidTicketStateException e) {
+            System.out.println("  Ошибка: " + e.getMessage());
+        }
+
+        section("Задания 6-7. Комментарии клиента и проверка роли");
+        commentService.addComment(second.getId(), customer.getId(), "Камера заработала сама", false);
+        commentService.addComment(second.getId(), agent.getId(), "Клиент отменил, драйвер не трогали", true);
+        System.out.println("  Видно клиенту:");
+        commentService.findVisibleToCustomer(second.getId()).forEach(c -> System.out.println("    " + c));
+        try {
+            assignmentService.assignTicket(second.getId(), customer.getId(), admin.getId());
+        } catch (AccessDeniedException e) {
+            System.out.println("  Ошибка: " + e.getMessage());
+        }
+
         section("Задание 2. NEW + HIGH");
         ticketService.findByStatusAndPriority(TicketStatus.NEW, TicketPriority.HIGH)
                 .forEach(t -> System.out.println("  " + t));
 
         section("Задание 5. Деактивация категории");
-        User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
         categoryService.deactivateCategory(4);
         System.out.println("  " + categoryRepository.findById(4).orElseThrow());
         try {
@@ -227,12 +267,10 @@ public class Main {
                 .forEach(t -> System.out.println("    " + t));
 
         section("Задание 13. Переназначение и история назначений");
-        User ivan = userRepository.findByEmail("ivan.support@example.org").orElseThrow();
         User sergey = userRepository.findByEmail("sergey.net@example.org").orElseThrow();
-        User admin = userRepository.findByEmail("admin@example.org").orElseThrow();
         Ticket vpn = ticketService.createTicket(
                 "Не подключается VPN", "Ошибка 809", TicketPriority.HIGH, customer.getId(), 1L);
-        assignmentService.assignTicket(vpn.getId(), ivan.getId(), admin.getId());
+        assignmentService.assignTicket(vpn.getId(), agent.getId(), admin.getId());
         assignmentService.assignTicket(vpn.getId(), sergey.getId(), admin.getId());
         assignmentService.history(vpn.getId()).forEach(h -> System.out.println("  " + h));
 
@@ -254,15 +292,15 @@ public class Main {
         section("Задание 18. Optimistic locking");
         Ticket scanner = ticketService.createTicket(
                 "Не работает сканер штрихкодов", "Касса 2", TicketPriority.MEDIUM, customer.getId(), 3L);
-        Ticket first = ticketRepository.findById(scanner.getId()).orElseThrow();
-        Ticket second = ticketRepository.findById(scanner.getId()).orElseThrow();
-        System.out.println("  Обе копии прочитаны с version = " + first.getVersion());
-        first.changeStatus(TicketStatus.IN_PROGRESS);
-        ticketRepository.update(first);
-        System.out.println("  Первый пользователь сохранил изменения, version = " + first.getVersion());
-        second.changeStatus(TicketStatus.CANCELLED);
+        Ticket copyA = ticketRepository.findById(scanner.getId()).orElseThrow();
+        Ticket copyB = ticketRepository.findById(scanner.getId()).orElseThrow();
+        System.out.println("  Обе копии прочитаны с version = " + copyA.getVersion());
+        copyA.changeStatus(TicketStatus.IN_PROGRESS);
+        ticketRepository.update(copyA);
+        System.out.println("  Первый пользователь сохранил изменения, version = " + copyA.getVersion());
+        copyB.changeStatus(TicketStatus.CANCELLED);
         try {
-            ticketRepository.update(second);
+            ticketRepository.update(copyB);
         } catch (OptimisticLockException e) {
             System.out.println("  Второй пользователь: " + e.getMessage());
         }
