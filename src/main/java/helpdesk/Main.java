@@ -64,7 +64,8 @@ public class Main {
             case "scenario" -> app.runScenario();
             case "show" -> app.show(Long.parseLong(args[1]));
             case "list" -> app.list();
-            default -> System.out.println("Команды: scenario | show <id> | list");
+            case "demo" -> app.demo();
+            default -> System.out.println("Команды: scenario | show <id> | list | demo");
         }
     }
 
@@ -145,6 +146,17 @@ public class Main {
         System.out.println("По статусам: " + reportRepository.countByStatus());
         System.out.println("По категориям: " + reportRepository.countByCategory());
         System.out.println("Нагрузка сотрудников: " + reportRepository.agentWorkload());
+    }
+
+    private void demo() {
+        section("Задание 2. NEW + HIGH");
+        ticketService.findByStatusAndPriority(TicketStatus.NEW, TicketPriority.HIGH)
+                .forEach(t -> System.out.println("  " + t));
+    }
+
+    private static void section(String title) {
+        System.out.println();
+        System.out.println("--- " + title + " ---");
     }
 
     private static String orDash(String value) {

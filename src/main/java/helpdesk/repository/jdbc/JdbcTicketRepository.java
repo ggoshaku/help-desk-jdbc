@@ -97,6 +97,20 @@ public class JdbcTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> findByStatusAndPriority(TicketStatus status, TicketPriority priority) {
+        String sql = """
+                SELECT * FROM tickets
+                WHERE status = ?::ticket_status
+                  AND priority = ?::ticket_priority
+                ORDER BY created_at DESC
+                """;
+        return query(sql, ps -> {
+            ps.setString(1, status.name());
+            ps.setString(2, priority.name());
+        });
+    }
+
+    @Override
     public void update(Ticket ticket) {
         try (Connection connection = connections.getConnection()) {
             update(connection, ticket);

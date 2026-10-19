@@ -2,6 +2,7 @@ package helpdesk.repository.memory;
 
 import helpdesk.exception.TicketNotFoundException;
 import helpdesk.model.Ticket;
+import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.repository.TicketRepository;
 
@@ -39,6 +40,11 @@ public class InMemoryTicketRepository implements TicketRepository {
     @Override
     public List<Ticket> findByStatus(TicketStatus status) {
         return findBy(ticket -> ticket.getStatus() == status);
+    }
+
+    @Override
+    public List<Ticket> findByStatusAndPriority(TicketStatus status, TicketPriority priority) {
+        return findBy(ticket -> ticket.getStatus() == status && ticket.getPriority() == priority);
     }
 
     @Override

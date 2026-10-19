@@ -84,6 +84,10 @@ public class TicketService {
         return ticketRepository.findByStatus(status);
     }
 
+    public List<Ticket> findByStatusAndPriority(TicketStatus status, TicketPriority priority) {
+        return ticketRepository.findByStatusAndPriority(status, priority);
+    }
+
     private User getUser(long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));

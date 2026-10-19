@@ -1,6 +1,7 @@
 package helpdesk.repository;
 
 import helpdesk.model.Ticket;
+import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 
 import java.util.List;
@@ -15,6 +16,8 @@ public interface TicketRepository {
     List<Ticket> findAll();
 
     List<Ticket> findByStatus(TicketStatus status);
+
+    List<Ticket> findByStatusAndPriority(TicketStatus status, TicketPriority priority);
 
     void update(Ticket ticket);
 
