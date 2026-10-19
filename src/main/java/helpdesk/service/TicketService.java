@@ -1,13 +1,16 @@
 package helpdesk.service;
 
 import helpdesk.exception.AccessDeniedException;
+import helpdesk.exception.CategoryNotFoundException;
 import helpdesk.exception.TicketNotFoundException;
 import helpdesk.exception.UserNotFoundException;
+import helpdesk.model.Category;
 import helpdesk.model.SupportAgent;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
+import helpdesk.repository.CategoryRepository;
 import helpdesk.repository.TicketRepository;
 import helpdesk.repository.UserRepository;
 
@@ -17,18 +20,35 @@ public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
+    private final CategoryRepository categoryRepository;
     private final NotificationService notificationService;
 
     public TicketService(TicketRepository ticketRepository,
                          UserRepository userRepository,
+                         CategoryRepository categoryRepository,
                          NotificationService notificationService) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
+        this.categoryRepository = categoryRepository;
         this.notificationService = notificationService;
     }
 
     public Ticket createTicket(String title, String description, TicketPriority priority,
                                long customerId, Long categoryId) {
+        if (categoryId != null) {
+            Category category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new CategoryNotFoundException(categoryId));
+            if (!category.isActive()) {
+                throw new IllegalArgumentException("Категория \"" + category.getName() + "\" неактивна");
+            }
+            if (priority == null) {
+                priority = category.getDefaultPriority();
+            }
+        }
+        if (priority == null) {
+            priority = TicketPriority.MEDIUM;
+        }
+
         Ticket ticket = ticketRepository.save(new Ticket(title, description, priority, customerId, categoryId));
         notificationService.send("Заявка №" + ticket.getId() + " зарегистрирована");
         return ticket;

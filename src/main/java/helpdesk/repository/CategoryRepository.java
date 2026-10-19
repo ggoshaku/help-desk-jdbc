@@ -10,4 +10,6 @@ public interface CategoryRepository {
     List<Category> findAll();
 
     Optional<Category> findById(long id);
+
+    boolean setActive(long id, boolean active);
 }

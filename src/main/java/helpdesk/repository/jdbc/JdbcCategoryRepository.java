@@ -58,4 +58,17 @@ public class JdbcCategoryRepository implements CategoryRepository {
             throw new DataAccessException("Ошибка поиска категории " + id, e);
         }
     }
+
+    @Override
+    public boolean setActive(long id, boolean active) {
+        try (Connection connection = connections.getConnection();
+             PreparedStatement ps = connection.prepareStatement("UPDATE categories SET active = ? WHERE id = ?")) {
+
+            ps.setBoolean(1, active);
+            ps.setLong(2, id);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new DataAccessException("Не удалось изменить категорию " + id, e);
+        }
+    }
 }

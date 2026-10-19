@@ -19,6 +19,7 @@ import helpdesk.repository.jdbc.JdbcReportRepository;
 import helpdesk.repository.jdbc.JdbcStatusHistoryRepository;
 import helpdesk.repository.jdbc.JdbcTicketRepository;
 import helpdesk.repository.jdbc.JdbcUserRepository;
+import helpdesk.service.CategoryService;
 import helpdesk.service.CommentService;
 import helpdesk.service.ConsoleNotificationService;
 import helpdesk.service.TicketService;
@@ -35,6 +36,7 @@ public class Main {
     private final ReportRepository reportRepository;
     private final TicketService ticketService;
     private final CommentService commentService;
+    private final CategoryService categoryService;
 
     private Main(ConnectionProvider connections) {
         userRepository = new JdbcUserRepository(connections);
@@ -42,7 +44,9 @@ public class Main {
         historyRepository = new JdbcStatusHistoryRepository(connections);
         reportRepository = new JdbcReportRepository(connections);
         TicketRepository ticketRepository = new JdbcTicketRepository(connections);
-        ticketService = new TicketService(ticketRepository, userRepository, new ConsoleNotificationService());
+        ticketService = new TicketService(
+                ticketRepository, userRepository, categoryRepository, new ConsoleNotificationService());
+        categoryService = new CategoryService(categoryRepository);
         commentService = new CommentService(new JdbcCommentRepository(connections), ticketRepository, userRepository);
     }
 
@@ -152,6 +156,17 @@ public class Main {
         section("Задание 2. NEW + HIGH");
         ticketService.findByStatusAndPriority(TicketStatus.NEW, TicketPriority.HIGH)
                 .forEach(t -> System.out.println("  " + t));
+
+        section("Задание 5. Деактивация категории");
+        User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
+        categoryService.deactivateCategory(4);
+        System.out.println("  " + categoryRepository.findById(4).orElseThrow());
+        try {
+            ticketService.createTicket("Нет доступа к 1С", "Не пускает в базу", null, customer.getId(), 4L);
+        } catch (IllegalArgumentException e) {
+            System.out.println("  Ошибка: " + e.getMessage());
+        }
+        categoryService.activateCategory(4);
     }
 
     private static void section(String title) {

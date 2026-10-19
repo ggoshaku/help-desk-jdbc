@@ -2,12 +2,14 @@ package helpdesk.service;
 
 import helpdesk.exception.AccessDeniedException;
 import helpdesk.exception.TicketNotFoundException;
+import helpdesk.model.Category;
 import helpdesk.model.Customer;
 import helpdesk.model.SupportAgent;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
+import helpdesk.repository.memory.InMemoryCategoryRepository;
 import helpdesk.repository.memory.InMemoryTicketRepository;
 import helpdesk.repository.memory.InMemoryUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class TicketServiceTest {
     private final List<String> messages = new ArrayList<>();
     private final InMemoryUserRepository users = new InMemoryUserRepository();
+    private final InMemoryCategoryRepository categories = new InMemoryCategoryRepository();
     private final TicketService ticketService =
-            new TicketService(new InMemoryTicketRepository(), users, messages::add);
+            new TicketService(new InMemoryTicketRepository(), users, categories, messages::add);
 
     private User customer;
     private User agent;
@@ -31,6 +34,8 @@ class TicketServiceTest {
 
     @BeforeEach
     void setUp() {
+        categories.add(new Category(1, "Сеть", "", TicketPriority.HIGH, true));
+        categories.add(new Category(2, "Архив", "", TicketPriority.LOW, false));
         customer = users.save(new Customer("Анна Петрова", "anna@example.org", null));
         agent = users.save(new SupportAgent("Иван Соколов", "ivan@example.org", 1L));
         ticket = ticketService.createTicket("Не работает Wi-Fi", "Нет сети", TicketPriority.HIGH, customer.getId(), 1L);
@@ -79,5 +84,18 @@ class TicketServiceTest {
         ticketService.cancelTicket(ticket.getId(), customer.getId());
 
         assertEquals(TicketStatus.CANCELLED, ticketService.getTicket(ticket.getId()).getStatus());
+    }
+
+    @Test
+    void ticketInInactiveCategoryIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> ticketService.createTicket("Старая система", "Ошибка", null, customer.getId(), 2L));
+    }
+
+    @Test
+    void priorityDefaultsToCategoryPriority() {
+        Ticket created = ticketService.createTicket("Нет VPN", "Не подключается", null, customer.getId(), 1L);
+
+        assertEquals(TicketPriority.HIGH, created.getPriority());
     }
 }
