@@ -26,6 +26,8 @@ public interface TicketRepository {
 
     List<Ticket> findPage(int page, int size);
 
+    List<Ticket> search(String text);
+
     long count();
 
     void update(Ticket ticket);

@@ -192,6 +192,10 @@ public class Main {
             ticketService.findPage(page, 5).forEach(t -> System.out.println("    " + t));
         }
 
+        section("Задание 12. Поиск ILIKE: \"ПРИНТЕР\"");
+        ticketService.search("ПРИНТЕР").forEach(t -> System.out.println("  " + t));
+        System.out.println("  Поиск \"100%\": " + ticketService.search("100%").size() + " заявок");
+
         section("Rollback: сбой между UPDATE status и INSERT history");
         Ticket ticket = ticketService.createTicket(
                 "Проверка отката", "Демонстрация rollback", TicketPriority.LOW, customer.getId(), 2L);

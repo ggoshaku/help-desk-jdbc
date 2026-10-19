@@ -155,6 +155,13 @@ public class TicketService {
         return (int) ((ticketRepository.count() + size - 1) / size);
     }
 
+    public List<Ticket> search(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        return ticketRepository.search(text.strip());
+    }
+
     private Ticket lockTicket(long ticketId) {
         return ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException(ticketId));

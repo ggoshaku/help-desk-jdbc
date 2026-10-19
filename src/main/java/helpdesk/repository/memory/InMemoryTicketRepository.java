@@ -69,6 +69,13 @@ public class InMemoryTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> search(String text) {
+        String needle = text.toLowerCase();
+        return findBy(ticket -> ticket.getTitle().toLowerCase().contains(needle)
+                || ticket.getDescription().toLowerCase().contains(needle));
+    }
+
+    @Override
     public long count() {
         return tickets.size();
     }

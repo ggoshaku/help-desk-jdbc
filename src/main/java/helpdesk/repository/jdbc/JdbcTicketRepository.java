@@ -145,6 +145,20 @@ public class JdbcTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> search(String text) {
+        String sql = """
+                SELECT * FROM tickets
+                WHERE title ILIKE ? OR description ILIKE ?
+                ORDER BY created_at DESC
+                """;
+        String pattern = "%" + escapeLike(text) + "%";
+        return query(sql, ps -> {
+            ps.setString(1, pattern);
+            ps.setString(2, pattern);
+        });
+    }
+
+    @Override
     public long count() {
         try (Connection connection = connections.getConnection();
              PreparedStatement ps = connection.prepareStatement("SELECT COUNT(*) FROM tickets");
@@ -225,6 +239,12 @@ public class JdbcTicketRepository implements TicketRepository {
         } catch (SQLException e) {
             throw new DataAccessException("Ошибка чтения заявок", e);
         }
+    }
+
+    private static String escapeLike(String text) {
+        return text.replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
     }
 
     private Ticket mapTicket(ResultSet rs) throws SQLException {
