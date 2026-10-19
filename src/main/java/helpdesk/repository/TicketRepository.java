@@ -13,6 +13,8 @@ public interface TicketRepository {
 
     Optional<Ticket> findById(long id);
 
+    Optional<Ticket> findByIdForUpdate(long id);
+
     List<Ticket> findAll();
 
     List<Ticket> findByStatus(TicketStatus status);
@@ -20,10 +22,6 @@ public interface TicketRepository {
     List<Ticket> findByStatusAndPriority(TicketStatus status, TicketPriority priority);
 
     void update(Ticket ticket);
-
-    Ticket changeStatus(long ticketId, TicketStatus newStatus, long changedByUserId);
-
-    Ticket assign(long ticketId, long agentId, long assignedByUserId);
 
     boolean deleteById(long id);
 }

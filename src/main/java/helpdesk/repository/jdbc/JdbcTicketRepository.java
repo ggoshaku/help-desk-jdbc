@@ -66,8 +66,15 @@ public class JdbcTicketRepository implements TicketRepository {
 
     @Override
     public Optional<Ticket> findById(long id) {
-        String sql = "SELECT * FROM tickets WHERE id = ?";
+        return findOne("SELECT * FROM tickets WHERE id = ?", id);
+    }
 
+    @Override
+    public Optional<Ticket> findByIdForUpdate(long id) {
+        return findOne("SELECT * FROM tickets WHERE id = ? FOR UPDATE", id);
+    }
+
+    private Optional<Ticket> findOne(String sql, long id) {
         try (Connection connection = connections.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
 
@@ -112,92 +119,6 @@ public class JdbcTicketRepository implements TicketRepository {
 
     @Override
     public void update(Ticket ticket) {
-        try (Connection connection = connections.getConnection()) {
-            update(connection, ticket);
-        } catch (SQLException e) {
-            throw new DataAccessException("Не удалось обновить заявку " + ticket.getId(), e);
-        }
-    }
-
-    @Override
-    public Ticket changeStatus(long ticketId, TicketStatus newStatus, long changedByUserId) {
-        try (Connection connection = connections.getConnection()) {
-            connection.setAutoCommit(false);
-
-            try {
-                Ticket ticket = findForUpdate(connection, ticketId);
-                TicketStatus oldStatus = ticket.getStatus();
-                ticket.changeStatus(newStatus);
-                update(connection, ticket);
-                insertHistory(connection, ticketId, oldStatus, newStatus, changedByUserId);
-
-                connection.commit();
-                return ticket;
-            } catch (RuntimeException | SQLException e) {
-                connection.rollback();
-                throw e;
-            }
-        } catch (SQLException e) {
-            throw new DataAccessException("Ошибка изменения статуса заявки " + ticketId, e);
-        }
-    }
-
-    @Override
-    public Ticket assign(long ticketId, long agentId, long assignedByUserId) {
-        try (Connection connection = connections.getConnection()) {
-            connection.setAutoCommit(false);
-
-            try {
-                Ticket ticket = findForUpdate(connection, ticketId);
-                TicketStatus oldStatus = ticket.getStatus();
-                ticket.assignTo(agentId);
-                update(connection, ticket);
-                if (oldStatus != ticket.getStatus()) {
-                    insertHistory(connection, ticketId, oldStatus, ticket.getStatus(), assignedByUserId);
-                }
-
-                connection.commit();
-                return ticket;
-            } catch (RuntimeException | SQLException e) {
-                connection.rollback();
-                throw e;
-            }
-        } catch (SQLException e) {
-            throw new DataAccessException("Ошибка назначения заявки " + ticketId, e);
-        }
-    }
-
-    private Ticket findForUpdate(Connection connection, long ticketId) throws SQLException {
-        try (PreparedStatement ps = connection.prepareStatement("SELECT * FROM tickets WHERE id = ? FOR UPDATE")) {
-            ps.setLong(1, ticketId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
-                    throw new TicketNotFoundException(ticketId);
-                }
-                return mapTicket(rs);
-            }
-        }
-    }
-
-    private void insertHistory(Connection connection, long ticketId, TicketStatus oldStatus,
-                               TicketStatus newStatus, long changedByUserId) throws SQLException {
-        String sql = """
-                INSERT INTO ticket_status_history(
-                    ticket_id, old_status, new_status, changed_by_id
-                )
-                VALUES (?, ?::ticket_status, ?::ticket_status, ?)
-                """;
-
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setLong(1, ticketId);
-            ps.setString(2, oldStatus.name());
-            ps.setString(3, newStatus.name());
-            ps.setLong(4, changedByUserId);
-            ps.executeUpdate();
-        }
-    }
-
-    private void update(Connection connection, Ticket ticket) throws SQLException {
         String sql = """
                 UPDATE tickets
                 SET title = ?,
@@ -212,7 +133,9 @@ public class JdbcTicketRepository implements TicketRepository {
                 RETURNING updated_at
                 """;
 
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = connections.getConnection();
+             PreparedStatement ps = connection.prepareStatement(sql)) {
+
             ps.setString(1, ticket.getTitle());
             ps.setString(2, ticket.getDescription());
             ps.setString(3, ticket.getStatus().name());
@@ -228,6 +151,8 @@ public class JdbcTicketRepository implements TicketRepository {
                 }
                 ticket.markUpdated(toLocalDateTime(rs.getTimestamp("updated_at")));
             }
+        } catch (SQLException e) {
+            throw new DataAccessException("Не удалось обновить заявку " + ticket.getId(), e);
         }
     }
 

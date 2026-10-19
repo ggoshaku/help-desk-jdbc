@@ -11,25 +11,33 @@ import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
 import helpdesk.repository.CategoryRepository;
+import helpdesk.repository.StatusHistoryRepository;
 import helpdesk.repository.TicketRepository;
+import helpdesk.repository.TransactionRunner;
 import helpdesk.repository.UserRepository;
 
 import java.util.List;
 
 public class TicketService {
 
+    private final TransactionRunner transactions;
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
+    private final StatusHistoryRepository historyRepository;
     private final NotificationService notificationService;
 
-    public TicketService(TicketRepository ticketRepository,
+    public TicketService(TransactionRunner transactions,
+                         TicketRepository ticketRepository,
                          UserRepository userRepository,
                          CategoryRepository categoryRepository,
+                         StatusHistoryRepository historyRepository,
                          NotificationService notificationService) {
+        this.transactions = transactions;
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.categoryRepository = categoryRepository;
+        this.historyRepository = historyRepository;
         this.notificationService = notificationService;
     }
 
@@ -56,16 +64,23 @@ public class TicketService {
 
     public Ticket changeStatus(long ticketId, TicketStatus newStatus, long userId) {
         User user = getUser(userId);
-        Ticket ticket = getTicket(ticketId);
-        if (!user.canChangeStatus(ticket, newStatus)) {
-            throw new AccessDeniedException(
-                    user.getName() + " не может перевести заявку №" + ticketId + " в " + newStatus
-            );
-        }
 
-        Ticket updated = ticketRepository.changeStatus(ticketId, newStatus, userId);
-        notificationService.send("Заявка №" + ticketId + ": " + ticket.getStatus() + " -> " + newStatus);
-        return updated;
+        Ticket ticket = transactions.inTransaction(() -> {
+            Ticket locked = lockTicket(ticketId);
+            if (!user.canChangeStatus(locked, newStatus)) {
+                throw new AccessDeniedException(
+                        user.getName() + " не может перевести заявку №" + ticketId + " в " + newStatus
+                );
+            }
+            TicketStatus oldStatus = locked.getStatus();
+            locked.changeStatus(newStatus);
+            ticketRepository.update(locked);
+            historyRepository.add(ticketId, oldStatus, newStatus, userId);
+            return locked;
+        });
+
+        notificationService.send("Заявка №" + ticketId + " переведена в статус " + newStatus);
+        return ticket;
     }
 
     public Ticket assignTicket(long ticketId, long agentId, long assignedByUserId) {
@@ -77,14 +92,23 @@ public class TicketService {
             );
         }
         User assignedBy = getUser(assignedByUserId);
-        Ticket ticket = getTicket(ticketId);
-        if (!assignedBy.canChangeStatus(ticket, TicketStatus.IN_PROGRESS)) {
-            throw new AccessDeniedException(assignedBy.getName() + " не может назначать заявки");
-        }
 
-        Ticket assigned = ticketRepository.assign(ticketId, agentId, assignedByUserId);
+        Ticket ticket = transactions.inTransaction(() -> {
+            Ticket locked = lockTicket(ticketId);
+            if (!assignedBy.canChangeStatus(locked, TicketStatus.IN_PROGRESS)) {
+                throw new AccessDeniedException(assignedBy.getName() + " не может назначать заявки");
+            }
+            TicketStatus oldStatus = locked.getStatus();
+            locked.assignTo(agentId);
+            ticketRepository.update(locked);
+            if (oldStatus != locked.getStatus()) {
+                historyRepository.add(ticketId, oldStatus, locked.getStatus(), assignedByUserId);
+            }
+            return locked;
+        });
+
         notificationService.send("Заявка №" + ticketId + " назначена на " + agent.getName());
-        return assigned;
+        return ticket;
     }
 
     public Ticket cancelTicket(long ticketId, long userId) {
@@ -106,6 +130,11 @@ public class TicketService {
 
     public List<Ticket> findByStatusAndPriority(TicketStatus status, TicketPriority priority) {
         return ticketRepository.findByStatusAndPriority(status, priority);
+    }
+
+    private Ticket lockTicket(long ticketId) {
+        return ticketRepository.findByIdForUpdate(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
     }
 
     private User getUser(long id) {

@@ -33,6 +33,11 @@ public class InMemoryTicketRepository implements TicketRepository {
     }
 
     @Override
+    public Optional<Ticket> findByIdForUpdate(long id) {
+        return findById(id);
+    }
+
+    @Override
     public List<Ticket> findAll() {
         return new ArrayList<>(tickets.values());
     }
@@ -54,22 +59,6 @@ public class InMemoryTicketRepository implements TicketRepository {
         }
         ticket.markUpdated(LocalDateTime.now());
         tickets.put(ticket.getId(), ticket);
-    }
-
-    @Override
-    public Ticket changeStatus(long ticketId, TicketStatus newStatus, long changedByUserId) {
-        Ticket ticket = findById(ticketId).orElseThrow(() -> new TicketNotFoundException(ticketId));
-        ticket.changeStatus(newStatus);
-        update(ticket);
-        return ticket;
-    }
-
-    @Override
-    public Ticket assign(long ticketId, long agentId, long assignedByUserId) {
-        Ticket ticket = findById(ticketId).orElseThrow(() -> new TicketNotFoundException(ticketId));
-        ticket.assignTo(agentId);
-        update(ticket);
-        return ticket;
     }
 
     @Override

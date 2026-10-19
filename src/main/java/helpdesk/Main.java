@@ -11,6 +11,7 @@ import helpdesk.repository.CategoryRepository;
 import helpdesk.repository.ReportRepository;
 import helpdesk.repository.StatusHistoryRepository;
 import helpdesk.repository.TicketRepository;
+import helpdesk.repository.TransactionRunner;
 import helpdesk.repository.UserRepository;
 import helpdesk.repository.jdbc.ConnectionProvider;
 import helpdesk.repository.jdbc.JdbcCategoryRepository;
@@ -18,6 +19,7 @@ import helpdesk.repository.jdbc.JdbcCommentRepository;
 import helpdesk.repository.jdbc.JdbcReportRepository;
 import helpdesk.repository.jdbc.JdbcStatusHistoryRepository;
 import helpdesk.repository.jdbc.JdbcTicketRepository;
+import helpdesk.repository.jdbc.JdbcTransactionManager;
 import helpdesk.repository.jdbc.JdbcUserRepository;
 import helpdesk.service.CategoryService;
 import helpdesk.service.CommentService;
@@ -30,6 +32,8 @@ import java.sql.SQLException;
 
 public class Main {
 
+    private final TransactionRunner transactions;
+    private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final StatusHistoryRepository historyRepository;
@@ -38,14 +42,16 @@ public class Main {
     private final CommentService commentService;
     private final CategoryService categoryService;
 
-    private Main(ConnectionProvider connections) {
+    private Main(ConnectionProvider dataSource) {
+        JdbcTransactionManager connections = new JdbcTransactionManager(dataSource);
+        transactions = connections;
         userRepository = new JdbcUserRepository(connections);
         categoryRepository = new JdbcCategoryRepository(connections);
         historyRepository = new JdbcStatusHistoryRepository(connections);
         reportRepository = new JdbcReportRepository(connections);
-        TicketRepository ticketRepository = new JdbcTicketRepository(connections);
-        ticketService = new TicketService(
-                ticketRepository, userRepository, categoryRepository, new ConsoleNotificationService());
+        ticketRepository = new JdbcTicketRepository(connections);
+        ticketService = new TicketService(connections, ticketRepository, userRepository, categoryRepository,
+                historyRepository, new ConsoleNotificationService());
         categoryService = new CategoryService(categoryRepository);
         commentService = new CommentService(new JdbcCommentRepository(connections), ticketRepository, userRepository);
     }
@@ -167,6 +173,23 @@ public class Main {
             System.out.println("  Ошибка: " + e.getMessage());
         }
         categoryService.activateCategory(4);
+
+        section("Rollback: сбой между UPDATE status и INSERT history");
+        Ticket ticket = ticketService.createTicket(
+                "Проверка отката", "Демонстрация rollback", TicketPriority.LOW, customer.getId(), 2L);
+        try {
+            transactions.runInTransaction(() -> {
+                Ticket locked = ticketRepository.findByIdForUpdate(ticket.getId()).orElseThrow();
+                locked.changeStatus(TicketStatus.CANCELLED);
+                ticketRepository.update(locked);
+                System.out.println("  UPDATE выполнен, статус в транзакции: " + locked.getStatus());
+                throw new IllegalStateException("сбой перед записью истории");
+            });
+        } catch (IllegalStateException e) {
+            System.out.println("  Ошибка: " + e.getMessage());
+        }
+        System.out.println("  Статус после rollback: " + ticketService.getTicket(ticket.getId()).getStatus());
+        System.out.println("  Записей истории: " + historyRepository.findByTicketId(ticket.getId()).size());
     }
 
     private static void section(String title) {

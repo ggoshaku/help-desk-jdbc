@@ -10,7 +10,9 @@ import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
 import helpdesk.repository.memory.InMemoryCategoryRepository;
+import helpdesk.repository.memory.InMemoryStatusHistoryRepository;
 import helpdesk.repository.memory.InMemoryTicketRepository;
+import helpdesk.repository.memory.InMemoryTransactionRunner;
 import helpdesk.repository.memory.InMemoryUserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,8 +27,9 @@ class TicketServiceTest {
     private final List<String> messages = new ArrayList<>();
     private final InMemoryUserRepository users = new InMemoryUserRepository();
     private final InMemoryCategoryRepository categories = new InMemoryCategoryRepository();
-    private final TicketService ticketService =
-            new TicketService(new InMemoryTicketRepository(), users, categories, messages::add);
+    private final InMemoryStatusHistoryRepository history = new InMemoryStatusHistoryRepository();
+    private final TicketService ticketService = new TicketService(
+            new InMemoryTransactionRunner(), new InMemoryTicketRepository(), users, categories, history, messages::add);
 
     private User customer;
     private User agent;
@@ -74,6 +77,7 @@ class TicketServiceTest {
         ticketService.changeStatus(ticket.getId(), TicketStatus.CLOSED, agent.getId());
 
         assertEquals(TicketStatus.CLOSED, ticketService.getTicket(ticket.getId()).getStatus());
+        assertEquals(3, history.findByTicketId(ticket.getId()).size());
     }
 
     @Test

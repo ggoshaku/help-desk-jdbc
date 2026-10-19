@@ -24,6 +24,28 @@ public class JdbcStatusHistoryRepository implements StatusHistoryRepository {
     }
 
     @Override
+    public void add(long ticketId, TicketStatus oldStatus, TicketStatus newStatus, long changedById) {
+        String sql = """
+                INSERT INTO ticket_status_history(
+                    ticket_id, old_status, new_status, changed_by_id
+                )
+                VALUES (?, ?::ticket_status, ?::ticket_status, ?)
+                """;
+
+        try (Connection connection = connections.getConnection();
+             PreparedStatement ps = connection.prepareStatement(sql)) {
+
+            ps.setLong(1, ticketId);
+            ps.setString(2, oldStatus == null ? null : oldStatus.name());
+            ps.setString(3, newStatus.name());
+            ps.setLong(4, changedById);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DataAccessException("Не удалось записать историю заявки " + ticketId, e);
+        }
+    }
+
+    @Override
     public List<TicketStatusHistory> findByTicketId(long ticketId) {
         String sql = """
                 SELECT h.id, h.ticket_id, h.old_status, h.new_status,
