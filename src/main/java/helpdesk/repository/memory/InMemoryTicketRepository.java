@@ -1,0 +1,64 @@
+package helpdesk.repository.memory;
+
+import helpdesk.exception.TicketNotFoundException;
+import helpdesk.model.Ticket;
+import helpdesk.model.TicketStatus;
+import helpdesk.repository.TicketRepository;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Predicate;
+
+public class InMemoryTicketRepository implements TicketRepository {
+    private final Map<Long, Ticket> tickets = new LinkedHashMap<>();
+    private long nextId = 1;
+
+    @Override
+    public Ticket save(Ticket ticket) {
+        LocalDateTime now = LocalDateTime.now();
+        ticket.markSaved(nextId++, now, now);
+        tickets.put(ticket.getId(), ticket);
+        return ticket;
+    }
+
+    @Override
+    public Optional<Ticket> findById(long id) {
+        return Optional.ofNullable(tickets.get(id));
+    }
+
+    @Override
+    public List<Ticket> findAll() {
+        return new ArrayList<>(tickets.values());
+    }
+
+    @Override
+    public List<Ticket> findByStatus(TicketStatus status) {
+        return findBy(ticket -> ticket.getStatus() == status);
+    }
+
+    @Override
+    public void update(Ticket ticket) {
+        if (!tickets.containsKey(ticket.getId())) {
+            throw new TicketNotFoundException(ticket.getId());
+        }
+        ticket.markUpdated(LocalDateTime.now());
+        tickets.put(ticket.getId(), ticket);
+    }
+
+    @Override
+    public boolean deleteById(long id) {
+        return tickets.remove(id) != null;
+    }
+
+    private List<Ticket> findBy(Predicate<Ticket> condition) {
+        return tickets.values().stream()
+                .filter(condition)
+                .sorted(Comparator.comparing(Ticket::getCreatedAt).reversed())
+                .toList();
+    }
+}

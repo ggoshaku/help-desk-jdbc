@@ -1,29 +1,34 @@
 package helpdesk.repository;
 
 import helpdesk.model.Ticket;
-import helpdesk.model.TicketCategory;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
+import helpdesk.repository.memory.InMemoryTicketRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryTicketRepositoryTest {
     private TicketRepository repository;
     private Ticket wifi;
-    private Ticket printer;
 
     @BeforeEach
     void setUp() {
         repository = new InMemoryTicketRepository();
-        wifi = new Ticket(1, "Не работает Wi-Fi", "", TicketPriority.HIGH, TicketCategory.NETWORK);
-        printer = new Ticket(2, "Не печатает принтер", "", TicketPriority.LOW, TicketCategory.HARDWARE);
-        repository.add(wifi);
-        repository.add(printer);
+        wifi = repository.save(new Ticket("Не работает Wi-Fi", "", TicketPriority.HIGH, 1, 1L));
+    }
+
+    @Test
+    void saveAssignsId() {
+        Ticket printer = repository.save(new Ticket("Не печатает принтер", "", TicketPriority.LOW, 1, 3L));
+
+        assertEquals(1L, wifi.getId());
+        assertEquals(2L, printer.getId());
     }
 
     @Test
@@ -34,23 +39,14 @@ class InMemoryTicketRepositoryTest {
 
     @Test
     void findByStatusReturnsOnlyMatchingTickets() {
-        wifi.startProcessing();
-
-        assertEquals(List.of(printer), repository.findByStatus(TicketStatus.NEW));
-        assertEquals(List.of(wifi), repository.findByStatus(TicketStatus.IN_PROGRESS));
+        assertEquals(List.of(wifi), repository.findByStatus(TicketStatus.NEW));
+        assertTrue(repository.findByStatus(TicketStatus.CLOSED).isEmpty());
     }
 
     @Test
-    void findByPriorityAndCategory() {
-        assertEquals(List.of(wifi), repository.findByPriority(TicketPriority.HIGH));
-        assertEquals(List.of(printer), repository.findByCategory(TicketCategory.HARDWARE));
-        assertTrue(repository.findByCategory(TicketCategory.ACCOUNT).isEmpty());
-    }
-
-    @Test
-    void findAllReturnsCopy() {
-        repository.findAll().clear();
-
-        assertEquals(2, repository.findAll().size());
+    void deleteByIdRemovesTicket() {
+        assertTrue(repository.deleteById(1));
+        assertFalse(repository.deleteById(1));
+        assertTrue(repository.findAll().isEmpty());
     }
 }

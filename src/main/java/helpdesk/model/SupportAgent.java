@@ -1,23 +1,19 @@
 package helpdesk.model;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.time.LocalDateTime;
 
 public class SupportAgent extends User {
-    private final List<Ticket> assignedTickets = new ArrayList<>();
-
-    public SupportAgent(long id, String name, String email) {
-        super(id, name, email);
+    public SupportAgent(String name, String email, Long departmentId) {
+        this(null, name, email, departmentId, true, null);
     }
 
-    public void assignTicket(Ticket ticket) {
-        ticket.startProcessing();
-        assignedTickets.add(ticket);
+    public SupportAgent(Long id, String name, String email, Long departmentId, boolean active, LocalDateTime createdAt) {
+        super(id, name, email, departmentId, active, createdAt);
     }
 
-    public List<Ticket> getAssignedTickets() {
-        return Collections.unmodifiableList(assignedTickets);
+    @Override
+    public UserRole getRole() {
+        return UserRole.SUPPORT_AGENT;
     }
 
     @Override
