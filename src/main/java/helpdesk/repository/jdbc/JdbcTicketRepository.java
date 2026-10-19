@@ -98,6 +98,63 @@ public class JdbcTicketRepository implements TicketRepository {
 
     @Override
     public void update(Ticket ticket) {
+        try (Connection connection = connections.getConnection()) {
+            update(connection, ticket);
+        } catch (SQLException e) {
+            throw new DataAccessException("Не удалось обновить заявку " + ticket.getId(), e);
+        }
+    }
+
+    @Override
+    public Ticket changeStatus(long ticketId, TicketStatus newStatus, long changedByUserId) {
+        String selectSql = "SELECT * FROM tickets WHERE id = ? FOR UPDATE";
+
+        String historySql = """
+                INSERT INTO ticket_status_history(
+                    ticket_id, old_status, new_status, changed_by_id
+                )
+                VALUES (?, ?::ticket_status, ?::ticket_status, ?)
+                """;
+
+        try (Connection connection = connections.getConnection()) {
+            connection.setAutoCommit(false);
+
+            try {
+                Ticket ticket;
+                try (PreparedStatement ps = connection.prepareStatement(selectSql)) {
+                    ps.setLong(1, ticketId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new TicketNotFoundException(ticketId);
+                        }
+                        ticket = mapTicket(rs);
+                    }
+                }
+
+                TicketStatus oldStatus = ticket.getStatus();
+                ticket.changeStatus(newStatus);
+                update(connection, ticket);
+
+                try (PreparedStatement ps = connection.prepareStatement(historySql)) {
+                    ps.setLong(1, ticketId);
+                    ps.setString(2, oldStatus.name());
+                    ps.setString(3, newStatus.name());
+                    ps.setLong(4, changedByUserId);
+                    ps.executeUpdate();
+                }
+
+                connection.commit();
+                return ticket;
+            } catch (RuntimeException | SQLException e) {
+                connection.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Ошибка изменения статуса заявки " + ticketId, e);
+        }
+    }
+
+    private void update(Connection connection, Ticket ticket) throws SQLException {
         String sql = """
                 UPDATE tickets
                 SET title = ?,
@@ -112,9 +169,7 @@ public class JdbcTicketRepository implements TicketRepository {
                 RETURNING updated_at
                 """;
 
-        try (Connection connection = connections.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
-
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, ticket.getTitle());
             ps.setString(2, ticket.getDescription());
             ps.setString(3, ticket.getStatus().name());
@@ -130,8 +185,6 @@ public class JdbcTicketRepository implements TicketRepository {
                 }
                 ticket.markUpdated(toLocalDateTime(rs.getTimestamp("updated_at")));
             }
-        } catch (SQLException e) {
-            throw new DataAccessException("Не удалось обновить заявку " + ticket.getId(), e);
         }
     }
 

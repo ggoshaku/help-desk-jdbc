@@ -1,5 +1,7 @@
 package helpdesk.model;
 
+import helpdesk.exception.InvalidTicketStateException;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -51,6 +53,18 @@ public class Ticket {
         this.id = id;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+    }
+
+    public void changeStatus(TicketStatus newStatus) {
+        if (!status.canTransitionTo(newStatus)) {
+            throw new InvalidTicketStateException(
+                    "Заявка №" + id + ": недопустимый переход " + status + " -> " + newStatus
+            );
+        }
+        status = newStatus;
+        if (newStatus == TicketStatus.CLOSED) {
+            closedAt = LocalDateTime.now();
+        }
     }
 
     public void markUpdated(LocalDateTime updatedAt) {

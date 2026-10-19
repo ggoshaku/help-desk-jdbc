@@ -18,5 +18,7 @@ public interface TicketRepository {
 
     void update(Ticket ticket);
 
+    Ticket changeStatus(long ticketId, TicketStatus newStatus, long changedByUserId);
+
     boolean deleteById(long id);
 }

@@ -59,6 +59,8 @@ public abstract class User {
 
     public abstract UserRole getRole();
 
+    public abstract boolean canChangeStatus(Ticket ticket, TicketStatus newStatus);
+
     public abstract void performAction();
 
     @Override

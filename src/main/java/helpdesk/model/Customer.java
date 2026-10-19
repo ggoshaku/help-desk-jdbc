@@ -17,6 +17,11 @@ public class Customer extends User {
     }
 
     @Override
+    public boolean canChangeStatus(Ticket ticket, TicketStatus newStatus) {
+        return newStatus == TicketStatus.CANCELLED && ticket.getCustomerId() == getId();
+    }
+
+    @Override
     public void performAction() {
         System.out.println(getName() + " создаёт заявку");
     }

@@ -17,6 +17,11 @@ public class Administrator extends User {
     }
 
     @Override
+    public boolean canChangeStatus(Ticket ticket, TicketStatus newStatus) {
+        return true;
+    }
+
+    @Override
     public void performAction() {
         System.out.println(getName() + " управляет системой");
     }

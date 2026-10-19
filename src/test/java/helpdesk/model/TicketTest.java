@@ -1,10 +1,12 @@
 package helpdesk.model;
 
+import helpdesk.exception.InvalidTicketStateException;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -36,5 +38,26 @@ class TicketTest {
 
         assertEquals(10L, ticket.getId());
         assertThrows(IllegalStateException.class, () -> ticket.markSaved(11, now, now));
+    }
+
+    @Test
+    void closingTicketSetsClosedAt() {
+        Ticket ticket = new Ticket("Не работает VPN", "Нет доступа", TicketPriority.CRITICAL, 1, 4L);
+
+        ticket.changeStatus(TicketStatus.IN_PROGRESS);
+        ticket.changeStatus(TicketStatus.RESOLVED);
+        assertNull(ticket.getClosedAt());
+        ticket.changeStatus(TicketStatus.CLOSED);
+
+        assertEquals(TicketStatus.CLOSED, ticket.getStatus());
+        assertNotNull(ticket.getClosedAt());
+    }
+
+    @Test
+    void invalidTransitionKeepsStatus() {
+        Ticket ticket = new Ticket("Не работает VPN", "Нет доступа", TicketPriority.CRITICAL, 1, 4L);
+
+        assertThrows(InvalidTicketStateException.class, () -> ticket.changeStatus(TicketStatus.CLOSED));
+        assertEquals(TicketStatus.NEW, ticket.getStatus());
     }
 }

@@ -17,6 +17,11 @@ public class SupportAgent extends User {
     }
 
     @Override
+    public boolean canChangeStatus(Ticket ticket, TicketStatus newStatus) {
+        return true;
+    }
+
+    @Override
     public void performAction() {
         System.out.println(getName() + " обрабатывает заявку");
     }

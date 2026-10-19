@@ -1,16 +1,18 @@
 package helpdesk;
 
 import helpdesk.config.DatabaseConfig;
+import helpdesk.exception.AccessDeniedException;
+import helpdesk.exception.InvalidTicketStateException;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
 import helpdesk.repository.CategoryRepository;
-import helpdesk.repository.DepartmentRepository;
+import helpdesk.repository.StatusHistoryRepository;
 import helpdesk.repository.TicketRepository;
 import helpdesk.repository.UserRepository;
 import helpdesk.repository.jdbc.JdbcCategoryRepository;
-import helpdesk.repository.jdbc.JdbcDepartmentRepository;
+import helpdesk.repository.jdbc.JdbcStatusHistoryRepository;
 import helpdesk.repository.jdbc.JdbcTicketRepository;
 import helpdesk.repository.jdbc.JdbcUserRepository;
 import helpdesk.service.ConsoleNotificationService;
@@ -18,7 +20,6 @@ import helpdesk.service.TicketService;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
@@ -34,22 +35,15 @@ public class Main {
 
         UserRepository userRepository = new JdbcUserRepository(DatabaseConfig::getConnection);
         CategoryRepository categoryRepository = new JdbcCategoryRepository(DatabaseConfig::getConnection);
-        DepartmentRepository departmentRepository = new JdbcDepartmentRepository(DatabaseConfig::getConnection);
         TicketRepository ticketRepository = new JdbcTicketRepository(DatabaseConfig::getConnection);
-        TicketService ticketService = new TicketService(ticketRepository, new ConsoleNotificationService());
+        StatusHistoryRepository historyRepository = new JdbcStatusHistoryRepository(DatabaseConfig::getConnection);
+        TicketService ticketService =
+                new TicketService(ticketRepository, userRepository, new ConsoleNotificationService());
 
-        System.out.println("Подразделения:");
-        departmentRepository.findAll().forEach(System.out::println);
+        User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
+        User agent = userRepository.findByEmail("ivan.support@example.org").orElseThrow();
         System.out.println("Категории:");
         categoryRepository.findAll().forEach(System.out::println);
-        System.out.println("Пользователи:");
-        userRepository.findAll().forEach(System.out::println);
-        User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
-        System.out.println("Найден клиент: " + customer.getName());
-        System.out.println("nobody@example.org: " + userRepository.findByEmail("nobody@example.org")
-                .map(User::getName)
-                .orElse("не найден"));
-        System.out.println();
 
         Ticket ticket = ticketService.createTicket(
                 "Не печатает принтер",
@@ -58,19 +52,34 @@ public class Main {
                 customer.getId(),
                 3L
         );
-        System.out.println("Создана заявка с id " + ticket.getId() + ", created_at = " + ticket.getCreatedAt());
-        System.out.println("findById: " + ticketService.getTicket(ticket.getId()));
+        printTicket(ticket);
 
-        System.out.println();
-        System.out.println("Все заявки:");
-        printTickets(ticketService.findAll());
+        ticket = ticketService.changeStatus(ticket.getId(), TicketStatus.IN_PROGRESS, agent.getId());
+        printTicket(ticket);
+        ticket = ticketService.changeStatus(ticket.getId(), TicketStatus.RESOLVED, agent.getId());
+        printTicket(ticket);
 
-        System.out.println();
-        System.out.println("Новые заявки:");
-        printTickets(ticketService.findByStatus(TicketStatus.NEW));
+        System.out.println("История статусов:");
+        historyRepository.findByTicketId(ticket.getId()).forEach(System.out::println);
+
+        try {
+            ticketService.changeStatus(ticket.getId(), TicketStatus.CLOSED, customer.getId());
+        } catch (AccessDeniedException e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        }
+
+        Ticket mistake = ticketService.createTicket(
+                "Ошибочная заявка", "Создана по ошибке", TicketPriority.LOW, customer.getId(), null
+        );
+        printTicket(ticketService.cancelTicket(mistake.getId(), customer.getId()));
+        try {
+            ticketService.cancelTicket(mistake.getId(), customer.getId());
+        } catch (InvalidTicketStateException e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        }
     }
 
-    private static void printTickets(List<Ticket> tickets) {
-        tickets.forEach(System.out::println);
+    private static void printTicket(Ticket ticket) {
+        System.out.println(ticket + " | updated_at = " + ticket.getUpdatedAt());
     }
 }
