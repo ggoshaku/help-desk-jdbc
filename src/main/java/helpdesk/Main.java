@@ -4,8 +4,11 @@ import helpdesk.config.DatabaseConfig;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
+import helpdesk.model.User;
 import helpdesk.repository.TicketRepository;
+import helpdesk.repository.UserRepository;
 import helpdesk.repository.jdbc.JdbcTicketRepository;
+import helpdesk.repository.jdbc.JdbcUserRepository;
 import helpdesk.service.ConsoleNotificationService;
 import helpdesk.service.TicketService;
 
@@ -25,14 +28,24 @@ public class Main {
             return;
         }
 
+        UserRepository userRepository = new JdbcUserRepository(DatabaseConfig::getConnection);
         TicketRepository ticketRepository = new JdbcTicketRepository(DatabaseConfig::getConnection);
         TicketService ticketService = new TicketService(ticketRepository, new ConsoleNotificationService());
+
+        System.out.println("Пользователи:");
+        userRepository.findAll().forEach(System.out::println);
+        User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
+        System.out.println("Найден клиент: " + customer.getName());
+        System.out.println("nobody@example.org: " + userRepository.findByEmail("nobody@example.org")
+                .map(User::getName)
+                .orElse("не найден"));
+        System.out.println();
 
         Ticket ticket = ticketService.createTicket(
                 "Не печатает принтер",
                 "Принтер в бухгалтерии пишет \"замятие бумаги\"",
                 TicketPriority.MEDIUM,
-                1,
+                customer.getId(),
                 3L
         );
         System.out.println("Создана заявка с id " + ticket.getId() + ", created_at = " + ticket.getCreatedAt());
