@@ -22,6 +22,11 @@ public class Customer extends User {
     }
 
     @Override
+    public boolean canWriteInternalComments() {
+        return false;
+    }
+
+    @Override
     public void performAction() {
         System.out.println(getName() + " создаёт заявку");
     }

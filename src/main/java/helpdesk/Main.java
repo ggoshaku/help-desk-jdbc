@@ -8,13 +8,16 @@ import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
 import helpdesk.repository.CategoryRepository;
+import helpdesk.repository.CommentRepository;
 import helpdesk.repository.StatusHistoryRepository;
 import helpdesk.repository.TicketRepository;
 import helpdesk.repository.UserRepository;
 import helpdesk.repository.jdbc.JdbcCategoryRepository;
+import helpdesk.repository.jdbc.JdbcCommentRepository;
 import helpdesk.repository.jdbc.JdbcStatusHistoryRepository;
 import helpdesk.repository.jdbc.JdbcTicketRepository;
 import helpdesk.repository.jdbc.JdbcUserRepository;
+import helpdesk.service.CommentService;
 import helpdesk.service.ConsoleNotificationService;
 import helpdesk.service.TicketService;
 
@@ -37,8 +40,10 @@ public class Main {
         CategoryRepository categoryRepository = new JdbcCategoryRepository(DatabaseConfig::getConnection);
         TicketRepository ticketRepository = new JdbcTicketRepository(DatabaseConfig::getConnection);
         StatusHistoryRepository historyRepository = new JdbcStatusHistoryRepository(DatabaseConfig::getConnection);
+        CommentRepository commentRepository = new JdbcCommentRepository(DatabaseConfig::getConnection);
         TicketService ticketService =
                 new TicketService(ticketRepository, userRepository, new ConsoleNotificationService());
+        CommentService commentService = new CommentService(commentRepository, ticketRepository, userRepository);
 
         User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
         User agent = userRepository.findByEmail("ivan.support@example.org").orElseThrow();
@@ -63,7 +68,18 @@ public class Main {
         ticket = ticketService.assignTicket(ticket.getId(), agent.getId(), admin.getId());
         printTicket(ticket);
         System.out.println("Исполнитель: " + ticket.getAssigneeId());
+        commentService.addComment(ticket.getId(), customer.getId(), "Принтер стоит в кабинете 214", false);
         ticket = ticketService.changeStatus(ticket.getId(), TicketStatus.RESOLVED, agent.getId());
+        commentService.addComment(ticket.getId(), agent.getId(), "Заменил ролик подачи бумаги", true);
+        try {
+            commentService.addComment(ticket.getId(), customer.getId(), "Секрет", true);
+        } catch (AccessDeniedException e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        }
+        System.out.println("Все комментарии:");
+        commentService.findAll(ticket.getId()).forEach(System.out::println);
+        System.out.println("Комментарии, видимые клиенту:");
+        commentService.findVisibleToCustomer(ticket.getId()).forEach(System.out::println);
         printTicket(ticket);
 
         System.out.println("История статусов:");

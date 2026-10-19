@@ -57,6 +57,10 @@ public abstract class User {
         return createdAt;
     }
 
+    public boolean canWriteInternalComments() {
+        return true;
+    }
+
     public abstract UserRole getRole();
 
     public abstract boolean canChangeStatus(Ticket ticket, TicketStatus newStatus);
