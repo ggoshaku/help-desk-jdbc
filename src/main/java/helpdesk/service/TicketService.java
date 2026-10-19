@@ -141,6 +141,13 @@ public class TicketService {
         return ticketRepository.search(text.strip());
     }
 
+    public List<Ticket> fullTextSearch(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        return ticketRepository.fullTextSearch(query.strip());
+    }
+
     private Ticket lockTicket(long ticketId) {
         return ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException(ticketId));

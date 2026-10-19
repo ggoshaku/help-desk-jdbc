@@ -209,6 +209,15 @@ public class Main {
         ticketService.search("ПРИНТЕР").forEach(t -> System.out.println("  " + t));
         System.out.println("  Поиск \"100%\": " + ticketService.search("100%").size() + " заявок");
 
+        section("Задание 21. Полнотекстовый поиск и ILIKE");
+        for (String query : new String[]{"принтеры не печатают", "доступ -VPN", "почта"}) {
+            System.out.println("  \"" + query + "\": ILIKE = " + ticketService.search(query).size()
+                    + ", full-text = " + ticketService.fullTextSearch(query).size());
+        }
+        ticketService.fullTextSearch("принтеры не печатают").stream()
+                .limit(3)
+                .forEach(t -> System.out.println("    " + t));
+
         section("Задание 13. Переназначение и история назначений");
         User ivan = userRepository.findByEmail("ivan.support@example.org").orElseThrow();
         User sergey = userRepository.findByEmail("sergey.net@example.org").orElseThrow();

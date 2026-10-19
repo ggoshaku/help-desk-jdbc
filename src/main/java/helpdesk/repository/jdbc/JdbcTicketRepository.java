@@ -160,6 +160,19 @@ public class JdbcTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> fullTextSearch(String query) {
+        String sql = """
+                SELECT * FROM tickets
+                WHERE search_vector @@ websearch_to_tsquery('russian', ?)
+                ORDER BY ts_rank(search_vector, websearch_to_tsquery('russian', ?)) DESC, id
+                """;
+        return query(sql, ps -> {
+            ps.setString(1, query);
+            ps.setString(2, query);
+        });
+    }
+
+    @Override
     public long count() {
         try (Connection connection = connections.getConnection();
              PreparedStatement ps = connection.prepareStatement("SELECT COUNT(*) FROM tickets");

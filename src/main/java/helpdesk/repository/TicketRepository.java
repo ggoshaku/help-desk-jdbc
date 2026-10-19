@@ -28,6 +28,8 @@ public interface TicketRepository {
 
     List<Ticket> search(String text);
 
+    List<Ticket> fullTextSearch(String query);
+
     long count();
 
     void update(Ticket ticket);

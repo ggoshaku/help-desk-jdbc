@@ -76,6 +76,11 @@ public class InMemoryTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> fullTextSearch(String query) {
+        return search(query);
+    }
+
+    @Override
     public long count() {
         return tickets.size();
     }
