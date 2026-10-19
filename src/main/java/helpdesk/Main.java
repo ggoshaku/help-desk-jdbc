@@ -15,6 +15,7 @@ import helpdesk.repository.TicketRepository;
 import helpdesk.repository.TransactionRunner;
 import helpdesk.repository.UserRepository;
 import helpdesk.repository.jdbc.ConnectionProvider;
+import helpdesk.repository.jdbc.JdbcAssignmentHistoryRepository;
 import helpdesk.repository.jdbc.JdbcCategoryRepository;
 import helpdesk.repository.jdbc.JdbcCommentRepository;
 import helpdesk.repository.jdbc.JdbcReportRepository;
@@ -23,6 +24,7 @@ import helpdesk.repository.jdbc.JdbcStatusHistoryRepository;
 import helpdesk.repository.jdbc.JdbcTicketRepository;
 import helpdesk.repository.jdbc.JdbcTransactionManager;
 import helpdesk.repository.jdbc.JdbcUserRepository;
+import helpdesk.service.AssignmentService;
 import helpdesk.service.CategoryService;
 import helpdesk.service.CommentService;
 import helpdesk.service.ConsoleNotificationService;
@@ -45,6 +47,7 @@ public class Main {
     private final TicketService ticketService;
     private final CommentService commentService;
     private final CategoryService categoryService;
+    private final AssignmentService assignmentService;
 
     private Main(ConnectionProvider dataSource) {
         JdbcTransactionManager connections = new JdbcTransactionManager(dataSource);
@@ -55,8 +58,11 @@ public class Main {
         reportRepository = new JdbcReportRepository(connections);
         slaPolicyRepository = new JdbcSlaPolicyRepository(connections);
         ticketRepository = new JdbcTicketRepository(connections);
+        ConsoleNotificationService notifications = new ConsoleNotificationService();
         ticketService = new TicketService(connections, ticketRepository, userRepository, categoryRepository,
-                historyRepository, slaPolicyRepository, new ConsoleNotificationService());
+                historyRepository, slaPolicyRepository, notifications);
+        assignmentService = new AssignmentService(connections, ticketRepository, userRepository,
+                historyRepository, new JdbcAssignmentHistoryRepository(connections), notifications);
         categoryService = new CategoryService(categoryRepository);
         commentService = new CommentService(new JdbcCommentRepository(connections), ticketRepository, userRepository);
     }
@@ -110,7 +116,7 @@ public class Main {
         System.out.println("6. findById: " + ticketService.getTicket(ticket.getId()));
 
         System.out.println("7. Назначение сотрудника поддержки");
-        ticketService.assignTicket(ticket.getId(), agent.getId(), admin.getId());
+        assignmentService.assignTicket(ticket.getId(), agent.getId(), admin.getId());
 
         System.out.println("8. Комментарий клиента");
         System.out.println("   " + commentService.addComment(
@@ -195,6 +201,16 @@ public class Main {
         section("Задание 12. Поиск ILIKE: \"ПРИНТЕР\"");
         ticketService.search("ПРИНТЕР").forEach(t -> System.out.println("  " + t));
         System.out.println("  Поиск \"100%\": " + ticketService.search("100%").size() + " заявок");
+
+        section("Задание 13. Переназначение и история назначений");
+        User ivan = userRepository.findByEmail("ivan.support@example.org").orElseThrow();
+        User sergey = userRepository.findByEmail("sergey.net@example.org").orElseThrow();
+        User admin = userRepository.findByEmail("admin@example.org").orElseThrow();
+        Ticket vpn = ticketService.createTicket(
+                "Не подключается VPN", "Ошибка 809", TicketPriority.HIGH, customer.getId(), 1L);
+        assignmentService.assignTicket(vpn.getId(), ivan.getId(), admin.getId());
+        assignmentService.assignTicket(vpn.getId(), sergey.getId(), admin.getId());
+        assignmentService.history(vpn.getId()).forEach(h -> System.out.println("  " + h));
 
         section("Rollback: сбой между UPDATE status и INSERT history");
         Ticket ticket = ticketService.createTicket(

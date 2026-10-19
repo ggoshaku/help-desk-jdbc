@@ -60,23 +60,8 @@ class TicketServiceTest {
     }
 
     @Test
-    void assigningAgentMovesNewTicketToInProgress() {
-        Ticket assigned = ticketService.assignTicket(ticket.getId(), agent.getId(), agent.getId());
-
-        assertEquals(TicketStatus.IN_PROGRESS, assigned.getStatus());
-        assertEquals(agent.getId(), assigned.getAssigneeId());
-    }
-
-    @Test
-    void ticketCannotBeAssignedToCustomer() {
-        assertThrows(AccessDeniedException.class,
-                () -> ticketService.assignTicket(ticket.getId(), customer.getId(), agent.getId()));
-        assertEquals(TicketStatus.NEW, ticketService.getTicket(ticket.getId()).getStatus());
-    }
-
-    @Test
     void agentMovesTicketThroughLifecycle() {
-        ticketService.assignTicket(ticket.getId(), agent.getId(), agent.getId());
+        ticketService.changeStatus(ticket.getId(), TicketStatus.IN_PROGRESS, agent.getId());
         ticketService.changeStatus(ticket.getId(), TicketStatus.RESOLVED, agent.getId());
         ticketService.changeStatus(ticket.getId(), TicketStatus.CLOSED, agent.getId());
 

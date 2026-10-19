@@ -5,7 +5,6 @@ import helpdesk.exception.CategoryNotFoundException;
 import helpdesk.exception.TicketNotFoundException;
 import helpdesk.exception.UserNotFoundException;
 import helpdesk.model.Category;
-import helpdesk.model.SupportAgent;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
@@ -88,34 +87,6 @@ public class TicketService {
         });
 
         notificationService.send("Заявка №" + ticketId + " переведена в статус " + newStatus);
-        return ticket;
-    }
-
-    public Ticket assignTicket(long ticketId, long agentId, long assignedByUserId) {
-        User agent = getUser(agentId);
-        if (!(agent instanceof SupportAgent) || !agent.isActive()) {
-            throw new AccessDeniedException(
-                    "Заявку можно назначить только активному сотруднику поддержки, а " + agent.getName()
-                            + " - " + agent.getRole()
-            );
-        }
-        User assignedBy = getUser(assignedByUserId);
-
-        Ticket ticket = transactions.inTransaction(() -> {
-            Ticket locked = lockTicket(ticketId);
-            if (!assignedBy.canChangeStatus(locked, TicketStatus.IN_PROGRESS)) {
-                throw new AccessDeniedException(assignedBy.getName() + " не может назначать заявки");
-            }
-            TicketStatus oldStatus = locked.getStatus();
-            locked.assignTo(agentId);
-            ticketRepository.update(locked);
-            if (oldStatus != locked.getStatus()) {
-                historyRepository.add(ticketId, oldStatus, locked.getStatus(), assignedByUserId);
-            }
-            return locked;
-        });
-
-        notificationService.send("Заявка №" + ticketId + " назначена на " + agent.getName());
         return ticket;
     }
 
