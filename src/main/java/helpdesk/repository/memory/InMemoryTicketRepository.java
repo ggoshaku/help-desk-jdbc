@@ -53,6 +53,14 @@ public class InMemoryTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> findOverdue(LocalDateTime moment) {
+        return tickets.values().stream()
+                .filter(ticket -> ticket.isOverdue(moment))
+                .sorted(Comparator.comparing(Ticket::getDueAt))
+                .toList();
+    }
+
+    @Override
     public void update(Ticket ticket) {
         if (!tickets.containsKey(ticket.getId())) {
             throw new TicketNotFoundException(ticket.getId());

@@ -32,7 +32,8 @@ public class JdbcReportRepository implements ReportRepository {
                 assignee.name AS assignee_name,
                 t.created_at,
                 t.updated_at,
-                t.closed_at
+                t.closed_at,
+                t.due_at
             FROM tickets t
             JOIN users customer ON customer.id = t.customer_id
             LEFT JOIN users assignee ON assignee.id = t.assignee_id
@@ -49,7 +50,8 @@ public class JdbcReportRepository implements ReportRepository {
             rs.getString("assignee_name"),
             toLocalDateTime(rs.getTimestamp("created_at")),
             toLocalDateTime(rs.getTimestamp("updated_at")),
-            toLocalDateTime(rs.getTimestamp("closed_at"))
+            toLocalDateTime(rs.getTimestamp("closed_at")),
+            toLocalDateTime(rs.getTimestamp("due_at"))
     );
 
     private final ConnectionProvider connections;

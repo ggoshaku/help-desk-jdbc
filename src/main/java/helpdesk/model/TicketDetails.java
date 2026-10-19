@@ -12,6 +12,7 @@ public record TicketDetails(
         String assigneeName,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        LocalDateTime closedAt
+        LocalDateTime closedAt,
+        LocalDateTime dueAt
 ) {
 }

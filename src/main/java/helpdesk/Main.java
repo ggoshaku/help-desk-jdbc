@@ -9,6 +9,7 @@ import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
 import helpdesk.repository.CategoryRepository;
 import helpdesk.repository.ReportRepository;
+import helpdesk.repository.SlaPolicyRepository;
 import helpdesk.repository.StatusHistoryRepository;
 import helpdesk.repository.TicketRepository;
 import helpdesk.repository.TransactionRunner;
@@ -17,6 +18,7 @@ import helpdesk.repository.jdbc.ConnectionProvider;
 import helpdesk.repository.jdbc.JdbcCategoryRepository;
 import helpdesk.repository.jdbc.JdbcCommentRepository;
 import helpdesk.repository.jdbc.JdbcReportRepository;
+import helpdesk.repository.jdbc.JdbcSlaPolicyRepository;
 import helpdesk.repository.jdbc.JdbcStatusHistoryRepository;
 import helpdesk.repository.jdbc.JdbcTicketRepository;
 import helpdesk.repository.jdbc.JdbcTransactionManager;
@@ -29,6 +31,7 @@ import helpdesk.ui.TicketCardPrinter;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 
 public class Main {
 
@@ -38,6 +41,7 @@ public class Main {
     private final CategoryRepository categoryRepository;
     private final StatusHistoryRepository historyRepository;
     private final ReportRepository reportRepository;
+    private final SlaPolicyRepository slaPolicyRepository;
     private final TicketService ticketService;
     private final CommentService commentService;
     private final CategoryService categoryService;
@@ -49,9 +53,10 @@ public class Main {
         categoryRepository = new JdbcCategoryRepository(connections);
         historyRepository = new JdbcStatusHistoryRepository(connections);
         reportRepository = new JdbcReportRepository(connections);
+        slaPolicyRepository = new JdbcSlaPolicyRepository(connections);
         ticketRepository = new JdbcTicketRepository(connections);
         ticketService = new TicketService(connections, ticketRepository, userRepository, categoryRepository,
-                historyRepository, new ConsoleNotificationService());
+                historyRepository, slaPolicyRepository, new ConsoleNotificationService());
         categoryService = new CategoryService(categoryRepository);
         commentService = new CommentService(new JdbcCommentRepository(connections), ticketRepository, userRepository);
     }
@@ -173,6 +178,12 @@ public class Main {
             System.out.println("  Ошибка: " + e.getMessage());
         }
         categoryService.activateCategory(4);
+
+        section("Задания 9-10. SLA и просроченные заявки");
+        slaPolicyRepository.findAll().forEach(p -> System.out.println("  " + p));
+        LocalDateTime moment = LocalDateTime.now().plusHours(3);
+        System.out.println("  Просрочены на " + moment.withNano(0) + ":");
+        ticketService.findOverdue(moment).forEach(t -> System.out.println("  " + t + " | срок " + t.getDueAt()));
 
         section("Rollback: сбой между UPDATE status и INSERT history");
         Ticket ticket = ticketService.createTicket(

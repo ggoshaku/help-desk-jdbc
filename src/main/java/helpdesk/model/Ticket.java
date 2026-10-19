@@ -17,6 +17,7 @@ public class Ticket {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime closedAt;
+    private LocalDateTime dueAt;
 
     public Ticket(String title, String description, TicketPriority priority, long customerId, Long categoryId) {
         if (title == null || title.strip().length() < 3) {
@@ -32,7 +33,8 @@ public class Ticket {
 
     public Ticket(long id, String title, String description, TicketStatus status, TicketPriority priority,
                   long customerId, Long assigneeId, Long categoryId,
-                  LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime closedAt) {
+                  LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime closedAt,
+                  LocalDateTime dueAt) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -44,6 +46,7 @@ public class Ticket {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.closedAt = closedAt;
+        this.dueAt = dueAt;
     }
 
     public void markSaved(long id, LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -76,6 +79,14 @@ public class Ticket {
             );
         }
         assigneeId = agentId;
+    }
+
+    public void setDeadline(LocalDateTime dueAt) {
+        this.dueAt = dueAt;
+    }
+
+    public boolean isOverdue(LocalDateTime moment) {
+        return dueAt != null && status.isActive() && moment.isAfter(dueAt);
     }
 
     public void markUpdated(LocalDateTime updatedAt) {
@@ -124,6 +135,10 @@ public class Ticket {
 
     public LocalDateTime getClosedAt() {
         return closedAt;
+    }
+
+    public LocalDateTime getDueAt() {
+        return dueAt;
     }
 
     @Override

@@ -11,11 +11,13 @@ import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
 import helpdesk.repository.CategoryRepository;
+import helpdesk.repository.SlaPolicyRepository;
 import helpdesk.repository.StatusHistoryRepository;
 import helpdesk.repository.TicketRepository;
 import helpdesk.repository.TransactionRunner;
 import helpdesk.repository.UserRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class TicketService {
@@ -25,6 +27,7 @@ public class TicketService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final StatusHistoryRepository historyRepository;
+    private final SlaPolicyRepository slaPolicyRepository;
     private final NotificationService notificationService;
 
     public TicketService(TransactionRunner transactions,
@@ -32,12 +35,14 @@ public class TicketService {
                          UserRepository userRepository,
                          CategoryRepository categoryRepository,
                          StatusHistoryRepository historyRepository,
+                         SlaPolicyRepository slaPolicyRepository,
                          NotificationService notificationService) {
         this.transactions = transactions;
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.categoryRepository = categoryRepository;
         this.historyRepository = historyRepository;
+        this.slaPolicyRepository = slaPolicyRepository;
         this.notificationService = notificationService;
     }
 
@@ -57,7 +62,10 @@ public class TicketService {
             priority = TicketPriority.MEDIUM;
         }
 
-        Ticket ticket = ticketRepository.save(new Ticket(title, description, priority, customerId, categoryId));
+        Ticket ticket = new Ticket(title, description, priority, customerId, categoryId);
+        slaPolicyRepository.findByPriority(priority)
+                .ifPresent(policy -> ticket.setDeadline(LocalDateTime.now().plus(policy.resolveTime())));
+        ticketRepository.save(ticket);
         notificationService.send("Заявка №" + ticket.getId() + " зарегистрирована");
         return ticket;
     }
@@ -130,6 +138,10 @@ public class TicketService {
 
     public List<Ticket> findByStatusAndPriority(TicketStatus status, TicketPriority priority) {
         return ticketRepository.findByStatusAndPriority(status, priority);
+    }
+
+    public List<Ticket> findOverdue(LocalDateTime moment) {
+        return ticketRepository.findOverdue(moment);
     }
 
     private Ticket lockTicket(long ticketId) {

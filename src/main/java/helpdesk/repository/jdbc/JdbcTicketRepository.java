@@ -11,6 +11,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -33,9 +35,9 @@ public class JdbcTicketRepository implements TicketRepository {
         String sql = """
                 INSERT INTO tickets(
                     title, description, status, priority,
-                    customer_id, assignee_id, category_id
+                    customer_id, assignee_id, category_id, due_at
                 )
-                VALUES (?, ?, ?::ticket_status, ?::ticket_priority, ?, ?, ?)
+                VALUES (?, ?, ?::ticket_status, ?::ticket_priority, ?, ?, ?, ?)
                 RETURNING id, created_at, updated_at
                 """;
 
@@ -49,6 +51,7 @@ public class JdbcTicketRepository implements TicketRepository {
             ps.setLong(5, ticket.getCustomerId());
             setNullableLong(ps, 6, ticket.getAssigneeId());
             setNullableLong(ps, 7, ticket.getCategoryId());
+            setNullableDateTime(ps, 8, ticket.getDueAt());
 
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
@@ -118,6 +121,17 @@ public class JdbcTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> findOverdue(LocalDateTime moment) {
+        String sql = """
+                SELECT * FROM tickets
+                WHERE status IN ('NEW', 'IN_PROGRESS')
+                  AND due_at < ?
+                ORDER BY due_at
+                """;
+        return query(sql, ps -> ps.setTimestamp(1, Timestamp.valueOf(moment)));
+    }
+
+    @Override
     public void update(Ticket ticket) {
         String sql = """
                 UPDATE tickets
@@ -128,6 +142,7 @@ public class JdbcTicketRepository implements TicketRepository {
                     assignee_id = ?,
                     category_id = ?,
                     closed_at = ?,
+                    due_at = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 RETURNING updated_at
@@ -143,7 +158,8 @@ public class JdbcTicketRepository implements TicketRepository {
             setNullableLong(ps, 5, ticket.getAssigneeId());
             setNullableLong(ps, 6, ticket.getCategoryId());
             setNullableDateTime(ps, 7, ticket.getClosedAt());
-            ps.setLong(8, ticket.getId());
+            setNullableDateTime(ps, 8, ticket.getDueAt());
+            ps.setLong(9, ticket.getId());
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
@@ -197,7 +213,8 @@ public class JdbcTicketRepository implements TicketRepository {
                 getNullableLong(rs, "category_id"),
                 toLocalDateTime(rs.getTimestamp("created_at")),
                 toLocalDateTime(rs.getTimestamp("updated_at")),
-                toLocalDateTime(rs.getTimestamp("closed_at"))
+                toLocalDateTime(rs.getTimestamp("closed_at")),
+                toLocalDateTime(rs.getTimestamp("due_at"))
         );
     }
 }

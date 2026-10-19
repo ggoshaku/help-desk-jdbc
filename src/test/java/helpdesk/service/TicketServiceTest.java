@@ -10,6 +10,7 @@ import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
 import helpdesk.repository.memory.InMemoryCategoryRepository;
+import helpdesk.repository.memory.InMemorySlaPolicyRepository;
 import helpdesk.repository.memory.InMemoryStatusHistoryRepository;
 import helpdesk.repository.memory.InMemoryTicketRepository;
 import helpdesk.repository.memory.InMemoryTransactionRunner;
@@ -17,11 +18,13 @@ import helpdesk.repository.memory.InMemoryUserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TicketServiceTest {
     private final List<String> messages = new ArrayList<>();
@@ -29,7 +32,8 @@ class TicketServiceTest {
     private final InMemoryCategoryRepository categories = new InMemoryCategoryRepository();
     private final InMemoryStatusHistoryRepository history = new InMemoryStatusHistoryRepository();
     private final TicketService ticketService = new TicketService(
-            new InMemoryTransactionRunner(), new InMemoryTicketRepository(), users, categories, history, messages::add);
+            new InMemoryTransactionRunner(), new InMemoryTicketRepository(), users, categories, history,
+            new InMemorySlaPolicyRepository(), messages::add);
 
     private User customer;
     private User agent;
@@ -101,5 +105,16 @@ class TicketServiceTest {
         Ticket created = ticketService.createTicket("Нет VPN", "Не подключается", null, customer.getId(), 1L);
 
         assertEquals(TicketPriority.HIGH, created.getPriority());
+    }
+
+    @Test
+    void deadlineIsCalculatedFromSla() {
+        LocalDateTime before = LocalDateTime.now();
+        Ticket created = ticketService.createTicket("Сервер недоступен", "Не отвечает", TicketPriority.CRITICAL,
+                customer.getId(), 1L);
+
+        assertTrue(created.getDueAt().isAfter(before.plusMinutes(29)));
+        assertTrue(created.getDueAt().isBefore(LocalDateTime.now().plusMinutes(31)));
+        assertEquals(List.of(created), ticketService.findOverdue(LocalDateTime.now().plusHours(1)));
     }
 }

@@ -23,6 +23,7 @@ public final class TicketCardPrinter {
                 "| Создана:     " + format(ticket.createdAt()),
                 "| Изменена:    " + format(ticket.updatedAt()),
                 "| Закрыта:     " + format(ticket.closedAt()),
+                "| Срок по SLA: " + format(ticket.dueAt()),
                 "+------------------------------------------------"
         );
     }
