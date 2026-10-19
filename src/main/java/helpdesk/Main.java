@@ -29,6 +29,7 @@ import helpdesk.service.CategoryService;
 import helpdesk.service.CommentService;
 import helpdesk.service.ConsoleNotificationService;
 import helpdesk.service.TicketService;
+import helpdesk.ui.DurationFormat;
 import helpdesk.ui.TicketCardPrinter;
 
 import java.sql.Connection;
@@ -211,6 +212,18 @@ public class Main {
         assignmentService.assignTicket(vpn.getId(), ivan.getId(), admin.getId());
         assignmentService.assignTicket(vpn.getId(), sergey.getId(), admin.getId());
         assignmentService.history(vpn.getId()).forEach(h -> System.out.println("  " + h));
+
+        section("Задание 15. Статистика сотрудников");
+        System.out.printf("  %-16s %8s %8s %8s%n", "Сотрудник", "активные", "решённые", "закрытые");
+        reportRepository.agentStatistics().forEach(a -> System.out.printf(
+                "  %-16s %8d %8d %8d%n", a.agentName(), a.active(), a.resolved(), a.closed()));
+
+        section("Задание 16. Среднее время решения");
+        System.out.println("  Все закрытые заявки: " + reportRepository.averageResolutionTime()
+                .map(DurationFormat::format)
+                .orElse("нет данных"));
+        reportRepository.averageResolutionTimeByCategory()
+                .forEach((category, time) -> System.out.println("  " + category + ": " + DurationFormat.format(time)));
 
         section("Rollback: сбой между UPDATE status и INSERT history");
         Ticket ticket = ticketService.createTicket(

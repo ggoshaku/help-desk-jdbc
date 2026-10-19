@@ -1,6 +1,7 @@
 package helpdesk.repository.jdbc;
 
 import helpdesk.exception.DataAccessException;
+import helpdesk.model.AgentStatistics;
 import helpdesk.model.TicketDetails;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
@@ -10,11 +11,13 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import static helpdesk.repository.jdbc.JdbcUtils.toLocalDateTime;
@@ -117,6 +120,59 @@ public class JdbcReportRepository implements ReportRepository {
                 ORDER BY active_tickets DESC, u.name
                 """;
         return toMap(sql, "name", "active_tickets");
+    }
+
+    @Override
+    public List<AgentStatistics> agentStatistics() {
+        String sql = """
+                SELECT u.name,
+                       COUNT(t.id) FILTER (WHERE t.status IN ('NEW', 'IN_PROGRESS')) AS active,
+                       COUNT(t.id) FILTER (WHERE t.status = 'RESOLVED') AS resolved,
+                       COUNT(t.id) FILTER (WHERE t.status = 'CLOSED') AS closed
+                FROM users u
+                LEFT JOIN tickets t ON t.assignee_id = u.id
+                WHERE u.role = 'SUPPORT_AGENT'
+                GROUP BY u.id, u.name
+                ORDER BY active DESC, u.name
+                """;
+        return query(sql, ps -> {
+        }, rs -> new AgentStatistics(
+                rs.getString("name"),
+                rs.getLong("active"),
+                rs.getLong("resolved"),
+                rs.getLong("closed")
+        ));
+    }
+
+    @Override
+    public Optional<Duration> averageResolutionTime() {
+        String sql = """
+                SELECT EXTRACT(EPOCH FROM AVG(closed_at - created_at)) AS seconds
+                FROM tickets
+                WHERE status = 'CLOSED' AND closed_at IS NOT NULL
+                """;
+        return query(sql, ps -> {
+        }, rs -> {
+            double seconds = rs.getDouble("seconds");
+            return rs.wasNull() ? null : Duration.ofSeconds(Math.round(seconds));
+        }).stream().filter(Objects::nonNull).findFirst();
+    }
+
+    @Override
+    public Map<String, Duration> averageResolutionTimeByCategory() {
+        String sql = """
+                SELECT c.name,
+                       EXTRACT(EPOCH FROM AVG(t.closed_at - t.created_at)) AS seconds
+                FROM tickets t
+                JOIN categories c ON c.id = t.category_id
+                WHERE t.status = 'CLOSED' AND t.closed_at IS NOT NULL
+                GROUP BY c.id, c.name
+                ORDER BY seconds
+                """;
+        Map<String, Duration> result = new LinkedHashMap<>();
+        query(sql, ps -> {
+        }, rs -> result.put(rs.getString("name"), Duration.ofSeconds(Math.round(rs.getDouble("seconds")))));
+        return result;
     }
 
     private Map<String, Long> toMap(String sql, String keyColumn, String valueColumn) {
