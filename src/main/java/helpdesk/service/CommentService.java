@@ -31,7 +31,7 @@ public class CommentService {
         if (internal && !author.canWriteInternalComments()) {
             throw new AccessDeniedException(author.getName() + " не может оставлять внутренние комментарии");
         }
-        return commentRepository.add(new TicketComment(ticketId, authorId, text, internal));
+        return commentRepository.add(new TicketComment(ticketId, author, text, internal));
     }
 
     public List<TicketComment> findAll(long ticketId) {

@@ -15,12 +15,14 @@ public class TicketComment {
     private String authorName;
     private UserRole authorRole;
 
-    public TicketComment(long ticketId, long authorId, String text, boolean internal) {
+    public TicketComment(long ticketId, User author, String text, boolean internal) {
         if (text == null || text.isBlank()) {
             throw new IllegalArgumentException("Комментарий не может быть пустым");
         }
         this.ticketId = ticketId;
-        this.authorId = authorId;
+        this.authorId = author.getId();
+        this.authorName = author.getName();
+        this.authorRole = author.getRole();
         this.text = text.strip();
         this.internal = internal;
     }
