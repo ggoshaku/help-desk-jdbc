@@ -5,8 +5,12 @@ import helpdesk.model.Ticket;
 import helpdesk.model.TicketPriority;
 import helpdesk.model.TicketStatus;
 import helpdesk.model.User;
+import helpdesk.repository.CategoryRepository;
+import helpdesk.repository.DepartmentRepository;
 import helpdesk.repository.TicketRepository;
 import helpdesk.repository.UserRepository;
+import helpdesk.repository.jdbc.JdbcCategoryRepository;
+import helpdesk.repository.jdbc.JdbcDepartmentRepository;
 import helpdesk.repository.jdbc.JdbcTicketRepository;
 import helpdesk.repository.jdbc.JdbcUserRepository;
 import helpdesk.service.ConsoleNotificationService;
@@ -29,9 +33,15 @@ public class Main {
         }
 
         UserRepository userRepository = new JdbcUserRepository(DatabaseConfig::getConnection);
+        CategoryRepository categoryRepository = new JdbcCategoryRepository(DatabaseConfig::getConnection);
+        DepartmentRepository departmentRepository = new JdbcDepartmentRepository(DatabaseConfig::getConnection);
         TicketRepository ticketRepository = new JdbcTicketRepository(DatabaseConfig::getConnection);
         TicketService ticketService = new TicketService(ticketRepository, new ConsoleNotificationService());
 
+        System.out.println("Подразделения:");
+        departmentRepository.findAll().forEach(System.out::println);
+        System.out.println("Категории:");
+        categoryRepository.findAll().forEach(System.out::println);
         System.out.println("Пользователи:");
         userRepository.findAll().forEach(System.out::println);
         User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
