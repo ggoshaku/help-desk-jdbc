@@ -2,7 +2,9 @@ package helpdesk;
 
 import helpdesk.config.DatabaseConfig;
 import helpdesk.exception.OptimisticLockException;
+import helpdesk.exception.RatingException;
 import helpdesk.model.Category;
+import helpdesk.model.TicketRating;
 import helpdesk.model.Ticket;
 import helpdesk.model.TicketDetails;
 import helpdesk.model.TicketPriority;
@@ -20,6 +22,7 @@ import helpdesk.repository.jdbc.JdbcAssignmentHistoryRepository;
 import helpdesk.repository.jdbc.JdbcAuditLogRepository;
 import helpdesk.repository.jdbc.JdbcCategoryRepository;
 import helpdesk.repository.jdbc.JdbcCommentRepository;
+import helpdesk.repository.jdbc.JdbcRatingRepository;
 import helpdesk.repository.jdbc.JdbcReportRepository;
 import helpdesk.repository.jdbc.JdbcSlaPolicyRepository;
 import helpdesk.repository.jdbc.JdbcStatusHistoryRepository;
@@ -31,6 +34,7 @@ import helpdesk.service.AuditService;
 import helpdesk.service.CategoryService;
 import helpdesk.service.CommentService;
 import helpdesk.service.ConsoleNotificationService;
+import helpdesk.service.RatingService;
 import helpdesk.service.TicketService;
 import helpdesk.ui.DurationFormat;
 import helpdesk.ui.TicketCardPrinter;
@@ -53,6 +57,7 @@ public class Main {
     private final CategoryService categoryService;
     private final AssignmentService assignmentService;
     private final AuditService auditService;
+    private final RatingService ratingService;
 
     private Main(ConnectionProvider dataSource) {
         JdbcTransactionManager connections = new JdbcTransactionManager(dataSource);
@@ -71,6 +76,8 @@ public class Main {
                 historyRepository, new JdbcAssignmentHistoryRepository(connections), auditService, notifications);
         categoryService = new CategoryService(categoryRepository);
         commentService = new CommentService(connections, new JdbcCommentRepository(connections),
+                ticketRepository, userRepository, auditService);
+        ratingService = new RatingService(connections, new JdbcRatingRepository(connections),
                 ticketRepository, userRepository, auditService);
     }
 
@@ -93,7 +100,8 @@ public class Main {
             case "show" -> app.show(Long.parseLong(args[1]));
             case "list" -> app.list();
             case "demo" -> app.demo();
-            default -> System.out.println("Команды: scenario | show <id> | list | demo");
+            case "ratings" -> app.ratings();
+            default -> System.out.println("Команды: scenario | show <id> | list | demo | ratings");
         }
     }
 
@@ -275,6 +283,44 @@ public class Main {
         }
         System.out.println("  Статус после rollback: " + ticketService.getTicket(ticket.getId()).getStatus());
         System.out.println("  Записей истории: " + historyRepository.findByTicketId(ticket.getId()).size());
+    }
+
+    private void ratings() {
+        User customer = userRepository.findByEmail("anna@example.org").orElseThrow();
+        User agent = userRepository.findByEmail("elena.support@example.org").orElseThrow();
+        User admin = userRepository.findByEmail("admin@example.org").orElseThrow();
+
+        section("Мини-проект B. Оценка качества");
+        Ticket ticket = ticketService.createTicket(
+                "Не запускается Teams", "Белый экран после обновления", TicketPriority.MEDIUM, customer.getId(), 2L);
+        assignmentService.assignTicket(ticket.getId(), agent.getId(), admin.getId());
+        try {
+            ratingService.rateTicket(ticket.getId(), customer.getId(), 5, "Спасибо!");
+        } catch (RatingException e) {
+            System.out.println("  Ошибка: " + e.getMessage());
+        }
+        ticketService.changeStatus(ticket.getId(), TicketStatus.RESOLVED, agent.getId());
+        ticketService.changeStatus(ticket.getId(), TicketStatus.CLOSED, agent.getId());
+
+        TicketRating rating = ratingService.rateTicket(
+                ticket.getId(), customer.getId(), 3, "Помогли, но пришлось ждать полдня");
+        System.out.println("  " + rating);
+        ratingService.replyToRating(rating.getId(), agent.getId(), "Извините за задержку, была очередь заявок");
+        ratingService.comments(rating.getId()).forEach(c -> System.out.println("    " + c));
+        try {
+            ratingService.rateTicket(ticket.getId(), customer.getId(), 5, null);
+        } catch (RatingException e) {
+            System.out.println("  Ошибка: " + e.getMessage());
+        }
+
+        section("Средняя оценка сотрудников");
+        ratingService.averageByAgent().forEach(r -> System.out.printf(
+                "  %-16s %.2f (оценок: %d)%n", r.agentName(), r.averageScore(), r.ratingsCount()));
+
+        section("Заявки с оценкой 3 и ниже");
+        ratingService.findLowRated(3).forEach(r -> System.out.printf(
+                "  #%d %s | %s | оценка %d | %s%n",
+                r.ticketId(), r.title(), r.agentName(), r.score(), orDash(r.lastComment())));
     }
 
     private static void section(String title) {

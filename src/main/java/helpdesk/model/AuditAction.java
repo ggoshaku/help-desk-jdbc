@@ -4,5 +4,6 @@ public enum AuditAction {
     CREATE_TICKET,
     ASSIGN_TICKET,
     CHANGE_STATUS,
-    ADD_COMMENT
+    ADD_COMMENT,
+    RATE_TICKET
 }
